@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Liberty Pitch Calling</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 8px; }
+    .top-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .top-row h2 { margin: 0; flex: 1; min-width: 220px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .panel { border: 1px solid #ccc; padding: 8px; border-radius: 6px; flex: 1; min-width: 220px; }
+    .games-panel { flex: 0 1 320px; }
+    .pitcher-panel { flex: 0 1 280px; }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .panel-header h3 { margin: 0; }
+    .panel-summary { font-size: 12px; color: #555; margin-left: 6px; }
+    .collapse-toggle { padding: 4px 8px; font-size: 12px; }
+    .collapsible-content { margin-top: 8px; }
+    button { padding: 6px 10px; margin: 2px; border-radius: 4px; border: 1px solid #888; background:#f5f5f5; }
+    button.active { background:#007bff; color:#fff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+    .small { font-size: 12px; }
+    .counts-table { margin-top: 0; }
+  </style>
+</head>
+<body>
+
+<div class="top-row">
+  <h2>Liberty Pitch Calling</h2>
+
+  <div class="panel pitcher-panel">
+    <div class="panel-header">
+      <h3>Pitcher <span id="pitcherSummary" class="panel-summary"></span></h3>
+      <button id="togglePitcherPanelBtn" class="collapse-toggle" type="button" aria-expanded="false" aria-controls="pitcherPanelBody">
+        Show
+      </button>
+    </div>
+    <div id="pitcherPanelBody" class="collapsible-content" style="display:none;">
+      <div id="pitchers"></div>
+    </div>
+  </div>
+
+  <div class="panel games-panel">
+    <div class="panel-header">
+      <h3>Games</h3>
+      <button id="toggleGamesPanelBtn" class="collapse-toggle" type="button" aria-expanded="false" aria-controls="gamesPanelBody">
+        Show
+      </button>
+    </div>
+    <div id="gamesPanelBody" class="collapsible-content" style="display:none;">
+      <label>Load Game:
+        <select id="gameSelect"></select>
+      </label>
+      <div>
+        <button id="newGameBtn" style="margin-top:6px; background:#6f42c1; color:white;">
+          New Game
+        </button>
+      </div>
+      <div>
+        <button id="exportCsvBtn" style="margin-top:6px; background:#17a2b8; color:white;">
+          Export CSV
+        </button>
+      </div>
+      <div>
+        <button id="deleteGameBtn" style="margin-top:6px; background:#dc3545; color:white;">
+          Delete Game
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="panel">
+    <h3>Batter</h3>
+    <label>Batter #:
+      <input type="number" id="batterNum" min="1" max="12" value="1" style="width:60px;">
+    </label><br>
+    <label>Total Batters:
+      <input type="number" id="totalBatters" min="1" max="12" value="9" style="width:60px;">
+    </label>
+    <div>
+      <button data-hand="RH" class="handBtn active">RH</button>
+      <button data-hand="LH" class="handBtn">LH</button>
+    </div>
+    <button id="newBatterBtn" style="margin-top:6px; background:#28a745; color:white;">
+      New Batter
+    </button>
+  </div>
+
+  <div class="panel">
+    <h3>Count</h3>
+    <div id="countDisplay" style="font-size:20px;">0-0</div>
+    <button id="undoBtn" style="margin-top:6px; background:#dc3545; color:white;">
+      Undo Last Pitch
+    </button>
+  </div>
+</div>
+
+<div class="row">
+  <div class="panel">
+    <h3>Pitch Type</h3>
+    <div id="pitchTypes"></div>
+  </div>
+
+  <div class="panel">
+    <h3>Numbers for Selected Pitch</h3>
+    <div id="pitchNumbers"></div>
+  </div>
+
+  <div class="panel">
+    <h3>Result</h3>
+    <div id="results"></div>
+
+    <div id="hitResultsPanel" style="margin-top:6px; display:none;">
+      <h4 class="small">Hit Details</h4>
+      <div id="hitDetails"></div>
+      <div id="hitLocationsPanel" style="margin-top:6px; display:none;"></div>
+        <h4 class="small">Hit Location</h4>
+        <div id="hitLocations"></div>
+      </div>
+      <div id="hitOutcomesPanel" style="margin-top:6px; display:none;">
+        <h4 class="small">Hit Outcome</h4>
+        <div id="hitOutcomes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Log</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Time</th><th>Pitcher</th><th>Batter</th><th>Hand</th>
+      <th>Count</th><th>Pitch</th><th>#</th><th>Result</th>
+    </tr>
+  </thead>
+  <tbody id="logBody"></tbody>
+</table>
+
+<div class="row">
+  <div class="panel">
+    <h3>Pitch Counts (Current Game)</h3>
+    <table class="counts-table">
+      <thead>
+        <tr><th>Pitcher</th><th>Total Pitches</th></tr>
+      </thead>
+      <tbody id="pitchCountsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// --- GAME ID SUPPORT ---
+let currentGameId = localStorage.getItem("currentGameId") || "game_1";
+
+// --- CONFIG ---
+
+const pitchers = ["Miranda", "Nikki", "Alex", "Harper", "Kennedy"];
+
+const pitchMap = {
+  FDO: ["124","342","415","454","255"],
+  FDI: ["112","134","313","324","525","543"],
+  FUI: ["113","315","423","515"],
+  FUO: ["014","045","144","415","544"],
+  FI:  ["121","211","311","511"],
+  FO:  ["101","302","505","415","525"],
+  D:   ["301","303","332","353","505"],
+  DI:  ["114","214","314","415","525"],
+  DO:  ["203","304","405","513","531"],
+  CRV: ["103","105","213","243","323","343","513"],
+  SCW: ["102","114","142","344","414"],
+  R:   ["102","204","304","501"],
+  RI:  ["402","432","501","542"],
+  RO:  ["404","414","542","552"],
+  CDO: ["111","502","515","523","552"],
+  CDI: ["115","125","212","432","451","513"],
+  CUO: ["105","305","323","343","513"],
+  CUI: ["221","231","251","431","541"],
+  CI:  ["203","312","402","431","451","513"],
+  CO:  ["105","215","501","532","551"],
+  BDC: ["202","205","312","432","542"]
+};
+
+const results = [
+  "Strike Looking","Strike Swinging","Ball","Foul"
+  ,"In Play","HBP"
+];
+
+const hitDetails = [
+  "Ground Ball","Line Drive","Fly Ball","Pop Up"
+];
+
+const hitOutcomes = [
+  "Out","Single","Double","Triple","Home Run", "fielders choice"
+];
+
+const hitLocations = [
+  "FB","SS","2nd","3rd","P","C","LF",
+  "RF","CF"
+];
+
+// --- STATE ---
+let currentPitcher = pitchers[0];
+let currentHand = "RH";
+let balls = 0;
+let strikes = 0;
+let selectedPitchType = null;
+let selectedNumber = null;
+
+// --- LOCAL STORAGE HELPERS ---
+
+function getStoredGameIds() {
+  const ids = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith("pitchLog_")) {
+      ids.push(key.replace("pitchLog_", ""));
+    }
+  }
+  ids.sort((a,b) => {
+    const na = parseInt(a.split("_")[1]);
+    const nb = parseInt(b.split("_")[1]);
+    return na - nb;
+  });
+  return ids;
+}
+
+function getAllGameIds() {
+  const ids = getStoredGameIds();
+  if (!ids.includes(currentGameId)) ids.push(currentGameId);
+  ids.sort((a,b) => {
+    const na = parseInt(a.split("_")[1]);
+    const nb = parseInt(b.split("_")[1]);
+    return na - nb;
+  });
+  return ids;
+}
+
+function populateGameSelect() {
+  const select = document.getElementById("gameSelect");
+  select.innerHTML = "";
+  const ids = getAllGameIds();
+  ids.forEach(id => {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = id;
+    if (id === currentGameId) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
+function saveLog() {
+  const rows = [...document.querySelectorAll("#logBody tr")].map(r =>
+    [...r.children].map(c => c.textContent)
+  );
+  localStorage.setItem("pitchLog_" + currentGameId, JSON.stringify(rows));
+  localStorage.setItem("currentGameId", currentGameId);
+  populateGameSelect();
+  updatePitchCounts();
+}
+
+function loadLog(gameId = null) {
+  if (gameId) currentGameId = gameId;
+  const saved = JSON.parse(localStorage.getItem("pitchLog_" + currentGameId) || "[]");
+  const logBody = document.getElementById("logBody");
+  logBody.innerHTML = "";
+  saved.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row[0]}</td>
+      <td>${row[1]}</td>
+      <td>${row[2]}</td>
+      <td>${row[3]}</td>
+      <td>${row[4]}</td>
+      <td>${row[5]}</td>
+      <td>${row[6]}</td>
+      <td>${row[7]}</td>
+    `;
+    logBody.appendChild(tr);
+  });
+  localStorage.setItem("currentGameId", currentGameId);
+  populateGameSelect();
+  updatePitchCounts();
+}
+
+function updatePitchCounts() {
+  const countsBody = document.getElementById("pitchCountsBody");
+  if (!countsBody) return;
+
+  const counts = Object.fromEntries(pitchers.map(p => [p, 0]));
+  const logRows = document.querySelectorAll("#logBody tr");
+
+  logRows.forEach(row => {
+    const pitcherCell = row.children[1];
+    if (!pitcherCell) return;
+    const pitcherName = pitcherCell.textContent;
+    if (!counts[pitcherName]) counts[pitcherName] = 0;
+    counts[pitcherName]++;
+  });
+
+  countsBody.innerHTML = "";
+  Object.keys(counts).forEach(pitcher => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${pitcher}</td><td>${counts[pitcher]}</td>`;
+    countsBody.appendChild(tr);
+  });
+}
+
+// --- UI BUILDERS ---
+
+function buildPitchers() {
+  const div = document.getElementById("pitchers");
+  pitchers.forEach(p => {
+    const btn = document.createElement("button");
+    btn.textContent = p;
+    btn.onclick = () => {
+      currentPitcher = p;
+      document.querySelectorAll("#pitchers button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      updatePitcherSummary();
+    };
+    if (p === currentPitcher) btn.classList.add("active");
+    div.appendChild(btn);
+  });
+  updatePitcherSummary();
+}
+
+function updatePitcherSummary() {
+  const summary = document.getElementById("pitcherSummary");
+  const panelBody = document.getElementById("pitcherPanelBody");
+  if (!summary || !panelBody) return;
+
+  const isClosed = panelBody.style.display === "none";
+  summary.textContent = isClosed ? `(${currentPitcher})` : "";
+}
+
+function initPitcherPanelToggle() {
+  const toggleBtn = document.getElementById("togglePitcherPanelBtn");
+  const panelBody = document.getElementById("pitcherPanelBody");
+
+  toggleBtn.onclick = () => {
+    const isHidden = panelBody.style.display === "none";
+    panelBody.style.display = isHidden ? "block" : "none";
+    toggleBtn.textContent = isHidden ? "Hide" : "Show";
+    toggleBtn.setAttribute("aria-expanded", String(isHidden));
+    updatePitcherSummary();
+  };
+
+  updatePitcherSummary();
+}
+
+function buildHands() {
+  document.querySelectorAll(".handBtn").forEach(btn => {
+    btn.onclick = () => {
+      currentHand = btn.dataset.hand;
+      document.querySelectorAll(".handBtn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+    };
+  });
+}
+
+function updateCountDisplay() {
+  document.getElementById("countDisplay").textContent = `${balls}-${strikes}`;
+}
+
+function resetCount() {
+  balls = 0;
+  strikes = 0;
+  updateCountDisplay();
+}
+
+function newBatter() {
+  let batterInput = document.getElementById("batterNum");
+  let current = parseInt(batterInput.value || "1");
+  batterInput.value = current + 1;
+  resetCount();
+}
+
+function autoIncrementBatter() {
+  const batterInput = document.getElementById("batterNum");
+  const total = parseInt(document.getElementById("totalBatters").value || "9");
+
+  let current = parseInt(batterInput.value || "1");
+  current++;
+
+  if (current > total) current = 1;
+
+  batterInput.value = current;
+  resetCount();
+}
+
+function buildPitchTypes() {
+  const div = document.getElementById("pitchTypes");
+  Object.keys(pitchMap).forEach(code => {
+    const btn = document.createElement("button");
+    btn.textContent = code;
+    btn.onclick = () => {
+      selectedPitchType = code;
+      selectedNumber = null;
+      document.querySelectorAll("#pitchTypes button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      buildPitchNumbers(code);
+    };
+    div.appendChild(btn);
+  });
+}
+
+function resetPitchNumbers() {
+  const div = document.getElementById("pitchNumbers");
+  div.innerHTML = "";
+  selectedNumber = null;
+}
+
+function buildPitchNumbers(code) {
+  const div = document.getElementById("pitchNumbers");
+  div.innerHTML = "";
+  pitchMap[code].forEach(num => {
+    const btn = document.createElement("button");
+    btn.textContent = num;
+    btn.onclick = () => {
+      selectedNumber = num;
+      document.querySelectorAll("#pitchNumbers button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+    };
+    div.appendChild(btn);
+  });
+}
+
+function buildResults() {
+  const div = document.getElementById("results");
+  results.forEach(r => {
+    const btn = document.createElement("button");
+    btn.textContent = r;
+    btn.onclick = () => {
+      document.querySelectorAll("#results button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      handleResult(r);
+    };
+    div.appendChild(btn);
+  });
+}
+
+function buildHitLocations() {
+  const div = document.getElementById("hitLocations");
+  hitLocations.forEach(h => {
+    const btn = document.createElement("button");
+    btn.textContent = h;
+    btn.onclick = () => {
+      window._pendingHitLocation = h;
+      document.querySelectorAll("#hitLocations button").forEach(b=>b.classList.remove("active"));
+      document.querySelectorAll("#hitOutcomes button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("hitOutcomesPanel").style.display = "block";
+    };
+    div.appendChild(btn);
+  });
+}
+
+function buildHitDetails() {
+  const div = document.getElementById("hitDetails");
+  hitDetails.forEach(h => {
+    const btn = document.createElement("button");
+    btn.textContent = h;
+    btn.onclick = () => {
+      window._pendingHitDetail = h;
+      document.querySelectorAll("#hitDetails button").forEach(b=>b.classList.remove("active"));
+      document.querySelectorAll("#hitLocations button").forEach(b=>b.classList.remove("active"));
+      document.querySelectorAll("#hitOutcomes button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("hitLocationsPanel").style.display = "block";
+    };
+    div.appendChild(btn);
+  });
+}
+
+function buildHitOutcomes() {
+  const div = document.getElementById("hitOutcomes");
+  hitOutcomes.forEach(h => {
+    const btn = document.createElement("button");
+    btn.textContent = h;
+    btn.onclick = () => {
+      document.querySelectorAll("#hitOutcomes button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      LogInPlayOutcome(h);
+    };
+    div.appendChild(btn);
+  });
+}
+
+// --- LOGGING ---
+
+function handleResult(result) {
+  if (result === "Ball") {
+    if (balls < 3) balls++;
+    else autoIncrementBatter(); // walk
+  }
+  else if (result === "Strike Looking" || result === "Strike Swinging" || result === "Foul") {
+    if (strikes < 2) strikes++;
+    else autoIncrementBatter(); // strikeout
+  }
+  else if (result === "In Play") {
+    document.getElementById("hitResultsPanel").style.display = "block";
+    window._pendingResult = result;
+    updateCountDisplay();
+    return;
+  }
+  else if (result === "HBP") {
+    autoIncrementBatter();
+  }
+
+  updateCountDisplay();
+
+  if (result !== "In Play") {
+    document.getElementById("hitResultsPanel").style.display = "none";
+    document.getElementById("hitOutcomesPanel").style.display = "none";
+    document.getElementById("hitLocationsPanel").style.display = "none";
+    finalizeLog(null, result);
+  }
+}
+
+function LogInPlayOutcome(outcome) {
+  const hitLocation = window._pendingHitLocation;
+  const hitDetail = window._pendingHitDetail; 
+  const result = window._pendingResult;
+  const overrideResult = result + " - " + hitDetail + "- " + hitLocation + " - " + outcome;
+  finalizeLog(null , overrideResult);
+}
+
+function finalizeLog(hitLoc, overrideResult) {
+  const batterNum = document.getElementById("batterNum").value || "";
+  const result = overrideResult || window._pendingResult || "";
+  const row = document.createElement("tr");
+  const now = new Date().toLocaleTimeString();
+
+  row.innerHTML = `
+    <td>${now}</td>
+    <td>${currentPitcher}</td>
+    <td>${batterNum}</td>
+    <td>${currentHand}</td>
+    <td>${balls}-${strikes}</td>
+    <td>${selectedPitchType || ""}</td>
+    <td>${selectedNumber || ""}</td>
+    <td>${result}</td>
+  `;
+  document.getElementById("logBody").appendChild(row);
+
+  if (result === "In Play") autoIncrementBatter();
+
+  //Reset form for next pitch
+  //Hide results panels
+  document.getElementById("hitOutcomesPanel").style.display = "none";
+  document.getElementById("hitLocationsPanel").style.display = "none";
+  document.getElementById("hitResultsPanel").style.display = "none";
+  //Reset active buttons
+  document.querySelectorAll("#hitDetails button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll("#hitLocations button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll("#hitOutcomes button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll("#results button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll("#pitchTypes button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll("#numbers button").forEach(b=>b.classList.remove("active"));
+  selectedPitchType = null;
+  selectedNumber = null;
+  resetPitchNumbers();
+  
+  window._pendingResult = null;
+  window._pendingHitLocation = null;
+  window._pendingHitDetail = null;
+
+  saveLog();
+}
+
+function undoLastPitch() {
+  const logBody = document.getElementById("logBody");
+  const rows = logBody.getElementsByTagName("tr");
+
+  if (rows.length === 0) return;
+
+  const lastRow = rows[rows.length - 1];
+  logBody.removeChild(lastRow);
+
+  const restoredCount = lastRow.children[4].textContent.split("-");
+  balls = parseInt(restoredCount[0]);
+  strikes = parseInt(restoredCount[1]);
+  updateCountDisplay();
+
+  document.getElementById("hitLocationsPanel").style.display = "none";
+  document.getElementById("hitOutcomesPanel").style.display = "none";
+  document.getElementById("hitResultsPanel").style.display = "none";
+  window._pendingResult = null;
+
+  saveLog();
+}
+
+// --- CSV EXPORT ---
+
+function exportCSV() {
+  const rows = [...document.querySelectorAll("#logBody tr")].map(r =>
+    [...r.children].map(c => c.textContent)
+  );
+
+  let csv = "Time,Pitcher,Batter,Hand,Count,Pitch,#,Result\n";
+  rows.forEach(r => {
+    csv += r.join(",") + "\n";
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = currentGameId + ".csv";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+// --- NEW GAME ---
+
+function newGame() {
+  let num = parseInt(currentGameId.split("_")[1]);
+  num++;
+  currentGameId = "game_" + num;
+
+  localStorage.setItem("currentGameId", currentGameId);
+
+  document.getElementById("logBody").innerHTML = "";
+  resetCount();
+  document.getElementById("batterNum").value = 1;
+
+  saveLog();
+}
+
+function deleteGame() {
+  const selectedGameId = document.getElementById("gameSelect").value || currentGameId;
+  const confirmed = window.confirm(`Delete ${selectedGameId} and all of its data? This cannot be undone.`);
+  if (!confirmed) return;
+
+  const typedConfirm = window.prompt(`Type DELETE to permanently remove ${selectedGameId}:`, "");
+  if (typedConfirm !== "DELETE") {
+    window.alert("Delete canceled. You must type DELETE exactly to confirm.");
+    return;
+  }
+
+  localStorage.removeItem("pitchLog_" + selectedGameId);
+
+  const remainingIds = getStoredGameIds();
+  if (remainingIds.length === 0) {
+    const deletedNum = parseInt(selectedGameId.split("_")[1], 10);
+    const nextNum = Number.isFinite(deletedNum) ? deletedNum + 1 : 1;
+    currentGameId = "game_" + nextNum;
+
+    localStorage.setItem("currentGameId", currentGameId);
+    document.getElementById("logBody").innerHTML = "";
+    resetCount();
+    document.getElementById("batterNum").value = 1;
+    saveLog();
+    return;
+  }
+
+  if (selectedGameId === currentGameId) {
+    currentGameId = remainingIds[0];
+  }
+
+  loadLog(currentGameId);
+}
+
+function initGamesPanelToggle() {
+  const toggleBtn = document.getElementById("toggleGamesPanelBtn");
+  const panelBody = document.getElementById("gamesPanelBody");
+
+  toggleBtn.onclick = () => {
+    const isHidden = panelBody.style.display === "none";
+    panelBody.style.display = isHidden ? "block" : "none";
+    toggleBtn.textContent = isHidden ? "Hide" : "Show";
+    toggleBtn.setAttribute("aria-expanded", String(isHidden));
+  };
+}
+
+// --- INIT ---
+buildPitchers();
+buildHands();
+updateCountDisplay();
+buildPitchTypes();
+buildResults();
+buildHitLocations();
+buildHitDetails();
+buildHitOutcomes();
+initPitcherPanelToggle();
+initGamesPanelToggle();
+
+loadLog(currentGameId);
+
+document.getElementById("newBatterBtn").onclick = newBatter;
+document.getElementById("undoBtn").onclick = undoLastPitch;
+document.getElementById("exportCsvBtn").onclick = exportCSV;
+document.getElementById("newGameBtn").onclick = newGame;
+document.getElementById("deleteGameBtn").onclick = deleteGame;
+document.getElementById("gameSelect").onchange = (e) => {
+  loadLog(e.target.value);
+};
+
+</script>
+
+</body>
+</html>
+
