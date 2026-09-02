@@ -64,6 +64,17 @@
         </button>
       </div>
       <div>
+        <button id="saveGamesBtn" style="margin-top:6px; background:#28a745; color:white;">
+          Save Games to File
+        </button>
+      </div>
+      <div>
+        <button id="restoreGamesBtn" style="margin-top:6px; background:#ffc107; color:#000;">
+          Restore Games from File
+        </button>
+        <input id="restoreGamesInput" type="file" accept="application/json,.json" style="display:none;" />
+      </div>
+      <div>
         <button id="deleteGameBtn" style="margin-top:6px; background:#dc3545; color:white;">
           Delete Game
         </button>
@@ -76,10 +87,10 @@
   <div class="panel">
     <h3>Batter</h3>
     <label>Batter #:
-      <input type="number" id="batterNum" min="1" max="12" value="1" style="width:60px;">
+      <input type="number" id="batterNum" min="1" max="20" value="1" style="width:60px;">
     </label><br>
     <label>Total Batters:
-      <input type="number" id="totalBatters" min="1" max="12" value="9" style="width:60px;">
+      <input type="number" id="totalBatters" min="1" max="20" value="9" style="width:60px;">
     </label>
     <div>
       <button data-hand="RH" class="handBtn active">RH</button>
@@ -129,16 +140,25 @@
   </div>
 </div>
 
-<h3>Log</h3>
-<table>
-  <thead>
-    <tr>
-      <th>Time</th><th>Pitcher</th><th>Batter</th><th>Hand</th>
-      <th>Count</th><th>Pitch</th><th>#</th><th>Result</th>
-    </tr>
-  </thead>
-  <tbody id="logBody"></tbody>
-</table>
+<div class="panel">
+  <div class="panel-header">
+    <h3>Log</h3>
+    <button id="toggleLogPanelBtn" class="collapse-toggle" type="button" aria-expanded="false" aria-controls="logPanelBody">
+      Show
+    </button>
+  </div>
+  <div id="logPanelBody" class="collapsible-content" style="display:none;">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th><th>Pitcher</th><th>Batter</th><th>Hand</th>
+          <th>Count</th><th>Pitch</th><th>#</th><th>Result</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+</div>
 
 <div class="row">
   <div class="panel">
@@ -151,6 +171,9 @@
     </table>
   </div>
 </div>
+<div class="footer">
+  <p>&copy; 2026 PitchCaller v1.0</p>
+</div>
 
 <script>
 // --- GAME ID SUPPORT ---
@@ -161,27 +184,28 @@ let currentGameId = localStorage.getItem("currentGameId") || "game_1";
 const pitchers = ["Miranda", "Nikki", "Alex", "Harper", "Kennedy"];
 
 const pitchMap = {
-  FDO: ["124","342","415","454","255"],
-  FDI: ["112","134","313","324","525","543"],
-  FUI: ["113","315","423","515"],
-  FUO: ["014","045","144","415","544"],
-  FI:  ["121","211","311","511"],
-  FO:  ["101","302","505","415","525"],
-  D:   ["301","303","332","353","505"],
-  DI:  ["114","214","314","415","525"],
-  DO:  ["203","304","405","513","531"],
-  CRV: ["103","105","213","243","323","343","513"],
-  SCW: ["102","114","142","344","414"],
-  R:   ["102","204","304","501"],
-  RI:  ["402","432","501","542"],
-  RO:  ["404","414","542","552"],
-  CDO: ["111","502","515","523","552"],
-  CDI: ["115","125","212","432","451","513"],
-  CUO: ["105","305","323","343","513"],
-  CUI: ["221","231","251","431","541"],
-  CI:  ["203","312","402","431","451","513"],
-  CO:  ["105","215","501","532","551"],
-  BDC: ["202","205","312","432","542"]
+  FDO: ["124","235","342","412","425","442","444","515","554"],
+  FDI: ["043","121","133","153","213","215","345","422","435"],
+  FUI: ["131","225","233","414","545"],
+  FUO: ["041","144","451","455","544"],
+  FI:  ["112","152","211","255","313"],
+  FO:  ["011","023","055","145","245"],
+  F:   ["045","134","222","223","341"],
+  CDO: ["025","111","155","532","533","552"],
+  CDI: ["132","151","324","524","534","551"],
+  CUO: ["015","224","243","253","323","543"],
+  CUI: ["212","244","322","331","445","514"],
+  CI:  ["032","114","123","254","314","334","441","521","555"],
+  CO:  ["234","251","312","351","415","512","535","542","553"],
+  D:   ["013","053","113","332","335","355","452","525"],
+  DI:  ["142","241","242","352","423","443","453","541"],
+  DO:  ["034","035","143","154","232","325","511","513"],
+  CRV: ["031","033","051","135","221","333","421","424"],
+  BDC: ["022","052","115","122","344","433"],
+  SCW: ["012","141","231","311","354","434"],
+  R:   ["021","042","125","315","343"],
+  RI:  ["024","214","321","353","431"],
+  RO:  ["044","252","411","454","522"]
 };
 
 const results = [
@@ -210,7 +234,130 @@ let strikes = 0;
 let selectedPitchType = null;
 let selectedNumber = null;
 
+const UI_STATE_KEY = "pitchCallerUiState";
+
 // --- LOCAL STORAGE HELPERS ---
+
+function getUiState() {
+  try {
+    return JSON.parse(localStorage.getItem(UI_STATE_KEY) || "{}");
+  } catch (error) {
+    return {};
+  }
+}
+
+function saveUiState() {
+  try {
+    const batterInput = document.getElementById("batterNum");
+    const totalBattersInput = document.getElementById("totalBatters");
+    const state = {
+      currentPitcher,
+      currentHand,
+      batterNum: batterInput ? batterInput.value : "",
+      totalBatters: totalBattersInput ? totalBattersInput.value : "",
+      balls,
+      strikes,
+      selectedPitchType,
+      selectedNumber,
+      pitcherPanelVisible: document.getElementById("pitcherPanelBody")?.style.display !== "none",
+      gamesPanelVisible: document.getElementById("gamesPanelBody")?.style.display !== "none",
+      logPanelVisible: document.getElementById("logPanelBody")?.style.display !== "none"
+    };
+    localStorage.setItem(UI_STATE_KEY, JSON.stringify(state));
+  } catch (error) {
+    // Ignore storage failures so the app keeps working.
+  }
+}
+
+function restoreUiState() {
+  const saved = getUiState();
+  if (saved.currentPitcher && pitchers.includes(saved.currentPitcher)) {
+    currentPitcher = saved.currentPitcher;
+  }
+  if (saved.currentHand) {
+    currentHand = saved.currentHand;
+  }
+  if (typeof saved.balls === "number") balls = saved.balls;
+  if (typeof saved.strikes === "number") strikes = saved.strikes;
+
+  const batterInput = document.getElementById("batterNum");
+  const totalBattersInput = document.getElementById("totalBatters");
+  if (batterInput && saved.batterNum !== undefined) {
+    batterInput.value = saved.batterNum;
+  }
+  if (totalBattersInput && saved.totalBatters !== undefined) {
+    totalBattersInput.value = saved.totalBatters;
+  }
+
+  if (saved.selectedPitchType && pitchMap[saved.selectedPitchType]) {
+    selectedPitchType = saved.selectedPitchType;
+  }
+  if (saved.selectedNumber) {
+    selectedNumber = saved.selectedNumber;
+  }
+
+  const pitcherPanel = document.getElementById("pitcherPanelBody");
+  const gamesPanel = document.getElementById("gamesPanelBody");
+  const logPanel = document.getElementById("logPanelBody");
+  if (pitcherPanel) {
+    const isVisible = saved.pitcherPanelVisible !== false;
+    pitcherPanel.style.display = isVisible ? "block" : "none";
+  }
+  if (gamesPanel) {
+    const isVisible = saved.gamesPanelVisible !== false;
+    gamesPanel.style.display = isVisible ? "block" : "none";
+  }
+  if (logPanel) {
+    const isVisible = saved.logPanelVisible !== false;
+    logPanel.style.display = isVisible ? "block" : "none";
+  }
+
+  const pitcherToggle = document.getElementById("togglePitcherPanelBtn");
+  if (pitcherToggle) {
+    const isVisible = pitcherPanel && pitcherPanel.style.display !== "none";
+    pitcherToggle.textContent = isVisible ? "Hide" : "Show";
+    pitcherToggle.setAttribute("aria-expanded", String(isVisible));
+  }
+
+  const gamesToggle = document.getElementById("toggleGamesPanelBtn");
+  if (gamesToggle) {
+    const isVisible = gamesPanel && gamesPanel.style.display !== "none";
+    gamesToggle.textContent = isVisible ? "Hide" : "Show";
+    gamesToggle.setAttribute("aria-expanded", String(isVisible));
+  }
+
+  const logToggle = document.getElementById("toggleLogPanelBtn");
+  if (logToggle) {
+    const isVisible = logPanel && logPanel.style.display !== "none";
+    logToggle.textContent = isVisible ? "Hide" : "Show";
+    logToggle.setAttribute("aria-expanded", String(isVisible));
+  }
+
+  const selectedPitcherBtn = document.querySelector(`#pitchers button[data-name="${currentPitcher}"]`);
+  if (selectedPitcherBtn) {
+    document.querySelectorAll("#pitchers button").forEach(b => b.classList.remove("active"));
+    selectedPitcherBtn.classList.add("active");
+  }
+
+  const selectedHandBtn = document.querySelector(`.handBtn[data-hand="${currentHand}"]`);
+  if (selectedHandBtn) {
+    document.querySelectorAll(".handBtn").forEach(b => b.classList.remove("active"));
+    selectedHandBtn.classList.add("active");
+  }
+
+  if (selectedPitchType && pitchMap[selectedPitchType]) {
+    document.querySelectorAll("#pitchTypes button").forEach(b => {
+      b.classList.toggle("active", b.textContent === selectedPitchType);
+    });
+    buildPitchNumbers(selectedPitchType);
+    document.querySelectorAll("#pitchNumbers button").forEach(b => {
+      b.classList.toggle("active", b.textContent === String(selectedNumber));
+    });
+  }
+
+  updatePitcherSummary();
+  updateCountDisplay();
+}
 
 function getStoredGameIds() {
   const ids = [];
@@ -250,6 +397,77 @@ function populateGameSelect() {
     if (id === currentGameId) opt.selected = true;
     select.appendChild(opt);
   });
+}
+
+function getBackupPayload() {
+  const games = {};
+  getStoredGameIds().forEach(id => {
+    const raw = localStorage.getItem("pitchLog_" + id);
+    if (raw) {
+      try {
+        games[id] = JSON.parse(raw);
+      } catch (error) {
+        games[id] = [];
+      }
+    }
+  });
+
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    currentGameId,
+    games
+  };
+}
+
+function saveGamesToFile() {
+  const payload = getBackupPayload();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `pitchcaller-games-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function restoreGamesFromFile(file) {
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const payload = JSON.parse(event.target.result);
+      if (!payload || !payload.games || typeof payload.games !== "object") {
+        throw new Error("Backup file is missing game data.");
+      }
+
+      const gameIds = Object.keys(payload.games);
+      if (gameIds.length === 0) {
+        throw new Error("Backup file does not contain any saved games.");
+      }
+
+      gameIds.forEach(gameId => {
+        const rows = Array.isArray(payload.games[gameId]) ? payload.games[gameId] : [];
+        localStorage.setItem("pitchLog_" + gameId, JSON.stringify(rows));
+      });
+
+      currentGameId = payload.currentGameId && payload.games[payload.currentGameId]
+        ? payload.currentGameId
+        : gameIds[0];
+      localStorage.setItem("currentGameId", currentGameId);
+
+      populateGameSelect();
+      loadLog(currentGameId);
+      window.alert(`Restored ${gameIds.length} game(s) from ${file.name}.`);
+    } catch (error) {
+      window.alert("Unable to restore games: " + error.message);
+    }
+  };
+
+  reader.readAsText(file);
 }
 
 function saveLog() {
@@ -316,11 +534,13 @@ function buildPitchers() {
   pitchers.forEach(p => {
     const btn = document.createElement("button");
     btn.textContent = p;
+    btn.dataset.name = p;
     btn.onclick = () => {
       currentPitcher = p;
       document.querySelectorAll("#pitchers button").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
       updatePitcherSummary();
+      saveUiState();
     };
     if (p === currentPitcher) btn.classList.add("active");
     div.appendChild(btn);
@@ -347,6 +567,7 @@ function initPitcherPanelToggle() {
     toggleBtn.textContent = isHidden ? "Hide" : "Show";
     toggleBtn.setAttribute("aria-expanded", String(isHidden));
     updatePitcherSummary();
+    saveUiState();
   };
 
   updatePitcherSummary();
@@ -358,24 +579,35 @@ function buildHands() {
       currentHand = btn.dataset.hand;
       document.querySelectorAll(".handBtn").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
+      saveUiState();
     };
   });
+  const activeHand = document.querySelector(`.handBtn[data-hand="${currentHand}"]`);
+  if (activeHand) {
+    document.querySelectorAll(".handBtn").forEach(b=>b.classList.remove("active"));
+    activeHand.classList.add("active");
+  }
 }
 
 function updateCountDisplay() {
-  document.getElementById("countDisplay").textContent = `${balls}-${strikes}`;
+  const countDisplay = document.getElementById("countDisplay");
+  if (countDisplay) {
+    countDisplay.textContent = `${balls}-${strikes}`;
+  }
 }
 
 function resetCount() {
   balls = 0;
   strikes = 0;
   updateCountDisplay();
+  saveUiState();
 }
 
 function newBatter() {
   let batterInput = document.getElementById("batterNum");
   let current = parseInt(batterInput.value || "1");
   batterInput.value = current + 1;
+  saveUiState();
   resetCount();
 }
 
@@ -389,6 +621,7 @@ function autoIncrementBatter() {
   if (current > total) current = 1;
 
   batterInput.value = current;
+  saveUiState();
   resetCount();
 }
 
@@ -403,9 +636,18 @@ function buildPitchTypes() {
       document.querySelectorAll("#pitchTypes button").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
       buildPitchNumbers(code);
+      saveUiState();
     };
     div.appendChild(btn);
   });
+
+  if (selectedPitchType && pitchMap[selectedPitchType]) {
+    const savedPitchBtn = Array.from(document.querySelectorAll("#pitchTypes button")).find(btn => btn.textContent === selectedPitchType);
+    if (savedPitchBtn) {
+      savedPitchBtn.classList.add("active");
+      buildPitchNumbers(selectedPitchType);
+    }
+  }
 }
 
 function resetPitchNumbers() {
@@ -424,7 +666,11 @@ function buildPitchNumbers(code) {
       selectedNumber = num;
       document.querySelectorAll("#pitchNumbers button").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
+      saveUiState();
     };
+    if (selectedNumber === num) {
+      btn.classList.add("active");
+    }
     div.appendChild(btn);
   });
 }
@@ -505,6 +751,7 @@ function handleResult(result) {
     document.getElementById("hitResultsPanel").style.display = "block";
     window._pendingResult = result;
     updateCountDisplay();
+    saveUiState();
     return;
   }
   else if (result === "HBP") {
@@ -512,6 +759,7 @@ function handleResult(result) {
   }
 
   updateCountDisplay();
+  saveUiState();
 
   if (result !== "In Play") {
     document.getElementById("hitResultsPanel").style.display = "none";
@@ -560,7 +808,7 @@ function finalizeLog(hitLoc, overrideResult) {
   document.querySelectorAll("#hitOutcomes button").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll("#results button").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll("#pitchTypes button").forEach(b=>b.classList.remove("active"));
-  document.querySelectorAll("#numbers button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll("#pitchNumbers button").forEach(b=>b.classList.remove("active"));
   selectedPitchType = null;
   selectedNumber = null;
   resetPitchNumbers();
@@ -569,6 +817,7 @@ function finalizeLog(hitLoc, overrideResult) {
   window._pendingHitLocation = null;
   window._pendingHitDetail = null;
 
+  saveUiState();
   saveLog();
 }
 
@@ -591,6 +840,7 @@ function undoLastPitch() {
   document.getElementById("hitResultsPanel").style.display = "none";
   window._pendingResult = null;
 
+  saveUiState();
   saveLog();
 }
 
@@ -676,6 +926,20 @@ function initGamesPanelToggle() {
     panelBody.style.display = isHidden ? "block" : "none";
     toggleBtn.textContent = isHidden ? "Hide" : "Show";
     toggleBtn.setAttribute("aria-expanded", String(isHidden));
+    saveUiState();
+  };
+}
+
+function initLogPanelToggle() {
+  const toggleBtn = document.getElementById("toggleLogPanelBtn");
+  const panelBody = document.getElementById("logPanelBody");
+
+  toggleBtn.onclick = () => {
+    const isHidden = panelBody.style.display === "none";
+    panelBody.style.display = isHidden ? "block" : "none";
+    toggleBtn.textContent = isHidden ? "Hide" : "Show";
+    toggleBtn.setAttribute("aria-expanded", String(isHidden));
+    saveUiState();
   };
 }
 
@@ -690,17 +954,30 @@ buildHitDetails();
 buildHitOutcomes();
 initPitcherPanelToggle();
 initGamesPanelToggle();
+initLogPanelToggle();
+restoreUiState();
 
 loadLog(currentGameId);
 
 document.getElementById("newBatterBtn").onclick = newBatter;
 document.getElementById("undoBtn").onclick = undoLastPitch;
 document.getElementById("exportCsvBtn").onclick = exportCSV;
+document.getElementById("saveGamesBtn").onclick = saveGamesToFile;
 document.getElementById("newGameBtn").onclick = newGame;
 document.getElementById("deleteGameBtn").onclick = deleteGame;
+document.getElementById("restoreGamesBtn").onclick = () => document.getElementById("restoreGamesInput").click();
+document.getElementById("restoreGamesInput").onchange = (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) {
+    restoreGamesFromFile(file);
+    e.target.value = "";
+  }
+};
 document.getElementById("gameSelect").onchange = (e) => {
   loadLog(e.target.value);
 };
+document.getElementById("batterNum").addEventListener("input", saveUiState);
+document.getElementById("totalBatters").addEventListener("input", saveUiState);
 
 </script>
 
