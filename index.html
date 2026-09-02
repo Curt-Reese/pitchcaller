@@ -89,6 +89,12 @@
     <label>Batter #:
       <input type="number" id="batterNum" min="1" max="20" value="1" style="width:60px;">
     </label><br>
+    <label>Batter Name:
+      <input type="text" id="batterName" placeholder="Optional" style="width:120px;">
+    </label><br>
+    <label>Jersey #:
+      <input type="number" id="batterJersey" min="0" max="99" placeholder="Optional" style="width:70px;">
+    </label><br>
     <label>Total Batters:
       <input type="number" id="totalBatters" min="1" max="20" value="9" style="width:60px;">
     </label>
@@ -249,11 +255,15 @@ function getUiState() {
 function saveUiState() {
   try {
     const batterInput = document.getElementById("batterNum");
+    const batterNameInput = document.getElementById("batterName");
+    const batterJerseyInput = document.getElementById("batterJersey");
     const totalBattersInput = document.getElementById("totalBatters");
     const state = {
       currentPitcher,
       currentHand,
       batterNum: batterInput ? batterInput.value : "",
+      batterName: batterNameInput ? batterNameInput.value : "",
+      batterJersey: batterJerseyInput ? batterJerseyInput.value : "",
       totalBatters: totalBattersInput ? totalBattersInput.value : "",
       balls,
       strikes,
@@ -281,9 +291,17 @@ function restoreUiState() {
   if (typeof saved.strikes === "number") strikes = saved.strikes;
 
   const batterInput = document.getElementById("batterNum");
+  const batterNameInput = document.getElementById("batterName");
+  const batterJerseyInput = document.getElementById("batterJersey");
   const totalBattersInput = document.getElementById("totalBatters");
   if (batterInput && saved.batterNum !== undefined) {
     batterInput.value = saved.batterNum;
+  }
+  if (batterNameInput && saved.batterName !== undefined) {
+    batterNameInput.value = saved.batterName;
+  }
+  if (batterJerseyInput && saved.batterJersey !== undefined) {
+    batterJerseyInput.value = saved.batterJersey;
   }
   if (totalBattersInput && saved.totalBatters !== undefined) {
     totalBattersInput.value = saved.totalBatters;
@@ -603,10 +621,31 @@ function resetCount() {
   saveUiState();
 }
 
+function clearBatterDetails() {
+  const batterNameInput = document.getElementById("batterName");
+  const batterJerseyInput = document.getElementById("batterJersey");
+  if (batterNameInput) batterNameInput.value = "";
+  if (batterJerseyInput) batterJerseyInput.value = "";
+}
+
+function getBatterDisplayName() {
+  const batterNum = document.getElementById("batterNum").value.trim();
+  const batterName = document.getElementById("batterName").value.trim();
+  const batterJersey = document.getElementById("batterJersey").value.trim();
+  const parts = [];
+
+  if (batterNum) parts.push(batterNum);
+  if (batterName) parts.push(batterName);
+  if (batterJersey) parts.push(`#${batterJersey}`);
+
+  return parts.join(" - ");
+}
+
 function newBatter() {
   let batterInput = document.getElementById("batterNum");
   let current = parseInt(batterInput.value || "1");
   batterInput.value = current + 1;
+  clearBatterDetails();
   saveUiState();
   resetCount();
 }
@@ -621,6 +660,7 @@ function autoIncrementBatter() {
   if (current > total) current = 1;
 
   batterInput.value = current;
+  clearBatterDetails();
   saveUiState();
   resetCount();
 }
@@ -778,7 +818,7 @@ function LogInPlayOutcome(outcome) {
 }
 
 function finalizeLog(hitLoc, overrideResult) {
-  const batterNum = document.getElementById("batterNum").value || "";
+  const batterDisplay = getBatterDisplayName();
   const result = overrideResult || window._pendingResult || "";
   const row = document.createElement("tr");
   const now = new Date().toLocaleTimeString();
@@ -786,7 +826,7 @@ function finalizeLog(hitLoc, overrideResult) {
   row.innerHTML = `
     <td>${now}</td>
     <td>${currentPitcher}</td>
-    <td>${batterNum}</td>
+    <td>${batterDisplay}</td>
     <td>${currentHand}</td>
     <td>${balls}-${strikes}</td>
     <td>${selectedPitchType || ""}</td>
@@ -879,6 +919,7 @@ function newGame() {
   document.getElementById("logBody").innerHTML = "";
   resetCount();
   document.getElementById("batterNum").value = 1;
+  clearBatterDetails();
 
   saveLog();
 }
@@ -977,6 +1018,8 @@ document.getElementById("gameSelect").onchange = (e) => {
   loadLog(e.target.value);
 };
 document.getElementById("batterNum").addEventListener("input", saveUiState);
+document.getElementById("batterName").addEventListener("input", saveUiState);
+document.getElementById("batterJersey").addEventListener("input", saveUiState);
 document.getElementById("totalBatters").addEventListener("input", saveUiState);
 
 </script>
