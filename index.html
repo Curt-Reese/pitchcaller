@@ -26,6 +26,7 @@
   </style>
 </head>
 <body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <div class="top-row">
   <h2>Liberty Pitch Calling</h2>
@@ -187,7 +188,105 @@ let currentGameId = localStorage.getItem("currentGameId") || "game_1";
 
 // --- CONFIG ---
 
+window.SUPABASE_CONFIG = window.SUPABASE_CONFIG || {
+  url: "https://YOUR_PROJECT_ID.supabase.co",
+  key: "YOUR_SUPABASE_ANON_KEY",
+  table: "pitchcaller_games"
+};
+
 const pitchers = ["Miranda", "Nikki", "Alex", "Harper", "Kennedy"];
+
+function getSupabaseClient() {
+  const config = window.SUPABASE_CONFIG || {};
+  const url = (config.url || "").trim();
+  const key = (config.key || "").trim();
+
+  if (!window.supabase || !url || !key || url.includes("YOUR_PROJECT_ID") || key.includes("YOUR_")) {
+    return null;
+  }
+
+  return window.supabase.createClient(url, key);
+}
+
+function getLocalRowsForGame(gameId) {
+  try {
+    return JSON.parse(localStorage.getItem("pitchLog_" + gameId) || "[]");
+  } catch (error) {
+    return [];
+  }
+}
+
+async function loadGameRowsFromSupabase(gameId) {
+  const client = getSupabaseClient();
+  if (!client) {
+    return getLocalRowsForGame(gameId);
+  }
+
+  const table = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.table) || "pitchcaller_games";
+  const { data, error } = await client
+    .from(table)
+    .select("rows")
+    .eq("game_id", gameId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Supabase load failed:", error.message);
+    return getLocalRowsForGame(gameId);
+  }
+
+  if (!data || !data.rows) {
+    return getLocalRowsForGame(gameId);
+  }
+
+  try {
+    return JSON.parse(data.rows);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function saveGameRowsToSupabase(gameId, rows) {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  const table = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.table) || "pitchcaller_games";
+  const { error } = await client
+    .from(table)
+    .upsert({
+      game_id: gameId,
+      rows: JSON.stringify(rows),
+      updated_at: new Date().toISOString()
+    }, { onConflict: "game_id" });
+
+  if (error) {
+    console.warn("Supabase save failed:", error.message);
+    return false;
+  }
+
+  return true;
+}
+
+async function deleteGameRowsFromSupabase(gameId) {
+  const client = getSupabaseClient();
+  if (!client) {
+    return false;
+  }
+
+  const table = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.table) || "pitchcaller_games";
+  const { error } = await client
+    .from(table)
+    .delete()
+    .eq("game_id", gameId);
+
+  if (error) {
+    console.warn("Supabase delete failed:", error.message);
+    return false;
+  }
+
+  return true;
+}
 
 const pitchMap = {
   FDO: ["124","235","342","412","425","442","444","515","554"],
@@ -494,13 +593,14 @@ function saveLog() {
   );
   localStorage.setItem("pitchLog_" + currentGameId, JSON.stringify(rows));
   localStorage.setItem("currentGameId", currentGameId);
+  saveGameRowsToSupabase(currentGameId, rows).catch(() => {});
   populateGameSelect();
   updatePitchCounts();
 }
 
-function loadLog(gameId = null) {
+async function loadLog(gameId = null) {
   if (gameId) currentGameId = gameId;
-  const saved = JSON.parse(localStorage.getItem("pitchLog_" + currentGameId) || "[]");
+  const saved = await loadGameRowsFromSupabase(currentGameId);
   const logBody = document.getElementById("logBody");
   logBody.innerHTML = "";
   saved.forEach(row => {
@@ -780,12 +880,28 @@ function buildHitOutcomes() {
 
 function handleResult(result) {
   if (result === "Ball") {
-    if (balls < 3) balls++;
-    else autoIncrementBatter(); // walk
+    if (balls < 3) {
+      // finalizeLog before incrementing balls so the count at time of pitch is recorded.
+      finalizeLog(null, result);
+      balls++;
+    }
+    else {
+      // finalizeLog before moving to next batter
+      finalizeLog(null, result);
+      autoIncrementBatter(); // walk
+    }
   }
   else if (result === "Strike Looking" || result === "Strike Swinging" || result === "Foul") {
-    if (strikes < 2) strikes++;
-    else autoIncrementBatter(); // strikeout
+    if (strikes < 2) {
+      // finalizeLog before incrementing strikes so the count at time of pitch is record.
+      finalizeLog(null, result);
+      strikes++;
+    }
+    else {
+      // finalizeLog before moving to next batter
+      finalizeLog(null, result);
+      autoIncrementBatter(); // strikeout
+    }
   }
   else if (result === "In Play") {
     document.getElementById("hitResultsPanel").style.display = "block";
@@ -805,7 +921,7 @@ function handleResult(result) {
     document.getElementById("hitResultsPanel").style.display = "none";
     document.getElementById("hitOutcomesPanel").style.display = "none";
     document.getElementById("hitLocationsPanel").style.display = "none";
-    finalizeLog(null, result);
+    //finalizeLog(null, result);
   }
 }
 
@@ -921,6 +1037,7 @@ function newGame() {
   document.getElementById("batterNum").value = 1;
   clearBatterDetails();
 
+  saveGameRowsToSupabase(currentGameId, []).catch(() => {});
   saveLog();
 }
 
@@ -936,6 +1053,7 @@ function deleteGame() {
   }
 
   localStorage.removeItem("pitchLog_" + selectedGameId);
+  deleteGameRowsFromSupabase(selectedGameId).catch(() => {});
 
   const remainingIds = getStoredGameIds();
   if (remainingIds.length === 0) {
