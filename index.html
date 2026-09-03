@@ -17,12 +17,211 @@
     .panel-summary { font-size: 12px; color: #555; margin-left: 6px; }
     .collapse-toggle { padding: 4px 8px; font-size: 12px; }
     .collapsible-content { margin-top: 8px; }
-    button { padding: 6px 10px; margin: 2px; border-radius: 4px; border: 1px solid #888; background:#f5f5f5; }
+
+    label {
+      display: inline-block;
+      font-size: 16px;
+      line-height: 1.3;
+      margin-bottom: 4px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .batter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 8px;
+      margin-bottom: 6px;
+    }
+
+    .batter-grid label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      white-space: nowrap;
+    }
+
+    .count-stack {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 56px;
+    }
+
+    button {
+      padding: 7px 10px;
+      margin: 2px;
+      border-radius: 6px;
+      border: 2px solid #666;
+      background:#f5f5f5;
+      font-size: 16px;
+      font-weight: 600;
+      min-height: 38px;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+    #pitchTypes, #pitchNumbers, #results {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: flex-start;
+    }
+    #pitchTypes button, #pitchNumbers button, #results button,
+    #hitDetails button, #hitLocations button, #hitOutcomes button {
+      min-height: 32px;
+      padding: 5px 8px;
+      font-size: 14px;
+      margin: 1px;
+    }
     button.active { background:#007bff; color:#fff; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
     th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
     .small { font-size: 12px; }
     .counts-table { margin-top: 0; }
+
+    input, select {
+      border: 2px solid #6c757d;
+      border-radius: 6px;
+      background: #fff;
+      padding: 8px 10px;
+      font-size: 16px;
+      line-height: 1.2;
+      min-height: 36px;
+      box-sizing: border-box;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #0056b3;
+      box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.18);
+    }
+
+    @media (min-width: 768px) and (max-width: 1024px) {
+      body {
+        font-size: 16px;
+        padding: 6px 12px 16px;
+      }
+
+      .top-row {
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .top-row h2 {
+        font-size: 2.1rem;
+      }
+
+      .row {
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .panel {
+        padding: 12px;
+        border-radius: 10px;
+      }
+
+      .panel-header h3 {
+        font-size: 1.3rem;
+      }
+
+      label {
+        font-size: 18px;
+      }
+
+      button {
+        padding: 10px 14px;
+        min-height: 46px;
+        border-width: 3px;
+        font-size: 18px;
+      }
+
+      input, select {
+        border-width: 3px;
+        padding: 10px 12px;
+        min-height: 42px;
+        font-size: 18px;
+      }
+    }
+
+    @media (orientation: landscape) and (min-width: 768px) {
+      body {
+        max-width: 1400px;
+        margin: 8px auto;
+      }
+
+      .top-row,
+      .row {
+        align-items: stretch;
+      }
+
+      .panel {
+        min-width: 240px;
+        padding: 8px 10px;
+      }
+
+      .games-panel {
+        flex: 1 1 420px;
+      }
+
+      .pitcher-panel {
+        flex: 1 1 360px;
+      }
+
+      .row {
+        flex-wrap: nowrap;
+        gap: 8px;
+      }
+
+      .row > .panel {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+
+      .panel h3 {
+        margin-top: 0;
+        margin-bottom: 6px;
+      }
+
+      .panel > h3 + label,
+      .panel > label {
+        margin-top: 0;
+      }
+
+      #countDisplay {
+        font-size: 18px !important;
+        margin: 4px 0 8px;
+      }
+
+      .batter-grid {
+        gap: 6px 10px;
+        margin-bottom: 4px;
+      }
+
+      .count-stack {
+        min-height: 48px;
+        gap: 12px;
+      }
+
+      #countDisplay {
+        font-size: 22px !important;
+      }
+
+      #newBatterBtn,
+      #undoBtn {
+        margin-top: 4px;
+      }
+
+      #pitchTypes button,
+      #pitchNumbers button,
+      #results button {
+        min-height: 30px;
+        padding: 4px 8px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -87,18 +286,20 @@
 <div class="row">
   <div class="panel">
     <h3>Batter</h3>
-    <label>Batter #:
-      <input type="number" id="batterNum" min="1" max="20" value="1" style="width:60px;">
-    </label><br>
-    <label>Batter Name:
-      <input type="text" id="batterName" placeholder="Optional" style="width:120px;">
-    </label><br>
-    <label>Jersey #:
-      <input type="number" id="batterJersey" min="0" max="99" placeholder="Optional" style="width:70px;">
-    </label><br>
-    <label>Total Batters:
-      <input type="number" id="totalBatters" min="1" max="20" value="9" style="width:60px;">
-    </label>
+    <div class="batter-grid">
+      <label>Batter #:
+        <input type="number" id="batterNum" min="1" max="20" value="1" style="width:60px;">
+      </label>
+      <label>Batter Name:
+        <input type="text" id="batterName" placeholder="Optional" style="width:140px;">
+      </label>
+      <label>Jersey #:
+        <input type="number" id="batterJersey" min="0" max="99" placeholder="Optional" style="width:76px;">
+      </label>
+      <label>Total Batters:
+        <input type="number" id="totalBatters" min="1" max="20" value="9" style="width:62px;">
+      </label>
+    </div>
     <div>
       <button data-hand="RH" class="handBtn active">RH</button>
       <button data-hand="LH" class="handBtn">LH</button>
@@ -110,10 +311,12 @@
 
   <div class="panel">
     <h3>Count</h3>
-    <div id="countDisplay" style="font-size:20px;">0-0</div>
-    <button id="undoBtn" style="margin-top:6px; background:#dc3545; color:white;">
-      Undo Last Pitch
-    </button>
+    <div class="count-stack">
+      <div id="countDisplay" style="font-size:20px; font-weight:700;">0-0</div>
+      <button id="undoBtn" style="background:#dc3545; color:white;">
+        Undo Last Pitch
+      </button>
+    </div>
   </div>
 </div>
 
@@ -931,6 +1134,7 @@ function LogInPlayOutcome(outcome) {
   const result = window._pendingResult;
   const overrideResult = result + " - " + hitDetail + "- " + hitLocation + " - " + outcome;
   finalizeLog(null , overrideResult);
+  autoIncrementBatter();
 }
 
 function finalizeLog(hitLoc, overrideResult) {
