@@ -253,6 +253,10 @@
       <label>Load Game:
         <select id="gameSelect"></select>
       </label>
+      <div style="margin-top:8px;">
+        <label for="gameNameInput" style="display:block; margin-bottom:4px;">Game Name:</label>
+        <input id="gameNameInput" type="text" maxlength="80" placeholder="My game" style="width:200px;">
+      </div>
       <div>
         <button id="newGameBtn" style="margin-top:6px; background:#6f42c1; color:white;">
           New Game
@@ -389,6 +393,27 @@
 // --- GAME ID SUPPORT ---
 let currentGameId = localStorage.getItem("currentGameId") || "game_1";
 
+function getGameName(gameId, fallback = null) {
+  const saved = localStorage.getItem("gameName_" + gameId);
+  if (saved && saved.trim()) return saved.trim();
+  return fallback !== null ? fallback : gameId;
+}
+
+function setGameName(gameId, name) {
+  const cleaned = (name || "").trim();
+  if (!cleaned) {
+    localStorage.removeItem("gameName_" + gameId);
+    return;
+  }
+  localStorage.setItem("gameName_" + gameId, cleaned);
+}
+
+function syncGameNameInput() {
+  const input = document.getElementById("gameNameInput");
+  if (!input) return;
+  input.value = getGameName(currentGameId, currentGameId);
+}
+
 // --- CONFIG ---
 
 window.SUPABASE_CONFIG = window.SUPABASE_CONFIG || {
@@ -428,13 +453,17 @@ async function loadGameRowsFromSupabase(gameId) {
   const table = (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.table) || "pitchcaller_games";
   const { data, error } = await client
     .from(table)
-    .select("rows")
+    .select("rows, game_name")
     .eq("game_id", gameId)
     .maybeSingle();
 
   if (error) {
     console.warn("Supabase load failed:", error.message);
     return getLocalRowsForGame(gameId);
+  }
+
+  if (data && data.game_name) {
+    setGameName(gameId, data.game_name);
   }
 
   if (!data || !data.rows) {
@@ -459,6 +488,7 @@ async function saveGameRowsToSupabase(gameId, rows) {
     .from(table)
     .upsert({
       game_id: gameId,
+      game_name: getGameName(gameId, gameId),
       rows: JSON.stringify(rows),
       updated_at: new Date().toISOString()
     }, { onConflict: "game_id" });
@@ -543,6 +573,65 @@ let selectedPitchType = null;
 let selectedNumber = null;
 
 const UI_STATE_KEY = "pitchCallerUiState";
+const BATTER_PROFILES_KEY = "pitchCallerBatterProfiles";
+
+function getBatterProfiles() {
+  try {
+    return JSON.parse(localStorage.getItem(BATTER_PROFILES_KEY) || "{}");
+  } catch (error) {
+    return {};
+  }
+}
+
+function saveBatterProfiles(profiles) {
+  try {
+    localStorage.setItem(BATTER_PROFILES_KEY, JSON.stringify(profiles));
+  } catch (error) {
+    // Ignore storage failures so the app keeps working.
+  }
+}
+
+function saveCurrentBatterProfile() {
+  const batterInput = document.getElementById("batterNum");
+  const batterNameInput = document.getElementById("batterName");
+  const batterJerseyInput = document.getElementById("batterJersey");
+  const batterNumber = batterInput ? (batterInput.value || "").trim() : "";
+  if (!batterNumber) return;
+
+  const profiles = getBatterProfiles();
+  profiles[batterNumber] = {
+    name: batterNameInput ? (batterNameInput.value || "").trim() : "",
+    jersey: batterJerseyInput ? (batterJerseyInput.value || "").trim() : "",
+    hand: currentHand
+  };
+  saveBatterProfiles(profiles);
+}
+
+function syncBatterFieldsFromProfile() {
+  const batterInput = document.getElementById("batterNum");
+  const batterNameInput = document.getElementById("batterName");
+  const batterJerseyInput = document.getElementById("batterJersey");
+  const batterNumber = batterInput ? (batterInput.value || "").trim() : "";
+  if (!batterNumber) return;
+
+  const profile = getBatterProfiles()[batterNumber];
+  if (!profile) return;
+
+  if (batterNameInput && batterNameInput.value !== (profile.name || "")) {
+    batterNameInput.value = profile.name || "";
+  }
+  if (batterJerseyInput && batterJerseyInput.value !== (profile.jersey || "")) {
+    batterJerseyInput.value = profile.jersey || "";
+  }
+
+  if (profile.hand && profile.hand !== currentHand) {
+    currentHand = profile.hand;
+    const activeHand = document.querySelector(`.handBtn[data-hand="${currentHand}"]`);
+    document.querySelectorAll(".handBtn").forEach(btn => {
+      btn.classList.toggle("active", btn === activeHand);
+    });
+  }
+}
 
 // --- LOCAL STORAGE HELPERS ---
 
@@ -608,6 +697,7 @@ function restoreUiState() {
   if (totalBattersInput && saved.totalBatters !== undefined) {
     totalBattersInput.value = saved.totalBatters;
   }
+  syncBatterFieldsFromProfile();
 
   if (saved.selectedPitchType && pitchMap[saved.selectedPitchType]) {
     selectedPitchType = saved.selectedPitchType;
@@ -713,7 +803,7 @@ function populateGameSelect() {
   ids.forEach(id => {
     const opt = document.createElement("option");
     opt.value = id;
-    opt.textContent = id;
+    opt.textContent = getGameName(id, id);
     if (id === currentGameId) opt.selected = true;
     select.appendChild(opt);
   });
@@ -721,6 +811,7 @@ function populateGameSelect() {
 
 function getBackupPayload() {
   const games = {};
+  const gameNames = {};
   getStoredGameIds().forEach(id => {
     const raw = localStorage.getItem("pitchLog_" + id);
     if (raw) {
@@ -730,13 +821,19 @@ function getBackupPayload() {
         games[id] = [];
       }
     }
+
+    const name = localStorage.getItem("gameName_" + id);
+    if (name) {
+      gameNames[id] = name;
+    }
   });
 
   return {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     currentGameId,
-    games
+    games,
+    gameNames
   };
 }
 
@@ -772,6 +869,12 @@ function restoreGamesFromFile(file) {
       gameIds.forEach(gameId => {
         const rows = Array.isArray(payload.games[gameId]) ? payload.games[gameId] : [];
         localStorage.setItem("pitchLog_" + gameId, JSON.stringify(rows));
+        const restoredName = payload.gameNames && payload.gameNames[gameId];
+        if (restoredName) {
+          localStorage.setItem("gameName_" + gameId, restoredName);
+        } else {
+          localStorage.removeItem("gameName_" + gameId);
+        }
       });
 
       currentGameId = payload.currentGameId && payload.games[payload.currentGameId]
@@ -780,6 +883,7 @@ function restoreGamesFromFile(file) {
       localStorage.setItem("currentGameId", currentGameId);
 
       populateGameSelect();
+      syncGameNameInput();
       loadLog(currentGameId);
       window.alert(`Restored ${gameIds.length} game(s) from ${file.name}.`);
     } catch (error) {
@@ -798,6 +902,7 @@ function saveLog() {
   localStorage.setItem("currentGameId", currentGameId);
   saveGameRowsToSupabase(currentGameId, rows).catch(() => {});
   populateGameSelect();
+  syncGameNameInput();
   updatePitchCounts();
 }
 
@@ -822,6 +927,7 @@ async function loadLog(gameId = null) {
   });
   localStorage.setItem("currentGameId", currentGameId);
   populateGameSelect();
+  syncGameNameInput();
   updatePitchCounts();
 }
 
@@ -900,6 +1006,7 @@ function buildHands() {
       currentHand = btn.dataset.hand;
       document.querySelectorAll(".handBtn").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
+      saveCurrentBatterProfile();
       saveUiState();
     };
   });
@@ -925,8 +1032,16 @@ function resetCount() {
 }
 
 function clearBatterDetails() {
+  const batterInput = document.getElementById("batterNum");
   const batterNameInput = document.getElementById("batterName");
   const batterJerseyInput = document.getElementById("batterJersey");
+  const batterNumber = batterInput ? (batterInput.value || "").trim() : "";
+
+  if (batterNumber && getBatterProfiles()[batterNumber]) {
+    syncBatterFieldsFromProfile();
+    return;
+  }
+
   if (batterNameInput) batterNameInput.value = "";
   if (batterJerseyInput) batterJerseyInput.value = "";
 }
@@ -947,7 +1062,9 @@ function getBatterDisplayName() {
 function newBatter() {
   let batterInput = document.getElementById("batterNum");
   let current = parseInt(batterInput.value || "1");
+  saveCurrentBatterProfile();
   batterInput.value = current + 1;
+  syncBatterFieldsFromProfile();
   clearBatterDetails();
   saveUiState();
   resetCount();
@@ -958,11 +1075,13 @@ function autoIncrementBatter() {
   const total = parseInt(document.getElementById("totalBatters").value || "9");
 
   let current = parseInt(batterInput.value || "1");
+  saveCurrentBatterProfile();
   current++;
 
   if (current > total) current = 1;
 
   batterInput.value = current;
+  syncBatterFieldsFromProfile();
   clearBatterDetails();
   saveUiState();
   resetCount();
@@ -1114,6 +1233,7 @@ function handleResult(result) {
     return;
   }
   else if (result === "HBP") {
+    finalizeLog(null, result); // finalizeLog before moving to next batter for HBP
     autoIncrementBatter();
   }
 
@@ -1230,11 +1350,17 @@ function exportCSV() {
 // --- NEW GAME ---
 
 function newGame() {
-  let num = parseInt(currentGameId.split("_")[1]);
+  const nameInput = document.getElementById("gameNameInput");
+  const customName = nameInput ? nameInput.value : "";
+  let num = parseInt(currentGameId.split("_")[1], 10);
+  if (!Number.isFinite(num)) num = 0;
   num++;
   currentGameId = "game_" + num;
 
   localStorage.setItem("currentGameId", currentGameId);
+  const nextName = (customName || "").trim() || `Game ${num}`;
+  setGameName(currentGameId, nextName);
+  if (nameInput) nameInput.value = nextName;
 
   document.getElementById("logBody").innerHTML = "";
   resetCount();
@@ -1257,6 +1383,7 @@ function deleteGame() {
   }
 
   localStorage.removeItem("pitchLog_" + selectedGameId);
+  localStorage.removeItem("gameName_" + selectedGameId);
   deleteGameRowsFromSupabase(selectedGameId).catch(() => {});
 
   const remainingIds = getStoredGameIds();
@@ -1328,6 +1455,12 @@ document.getElementById("exportCsvBtn").onclick = exportCSV;
 document.getElementById("saveGamesBtn").onclick = saveGamesToFile;
 document.getElementById("newGameBtn").onclick = newGame;
 document.getElementById("deleteGameBtn").onclick = deleteGame;
+document.getElementById("gameNameInput").onchange = (e) => {
+  const name = (e.target.value || "").trim();
+  setGameName(currentGameId, name || getGameName(currentGameId, currentGameId));
+  if (!name) e.target.value = getGameName(currentGameId, currentGameId);
+  populateGameSelect();
+};
 document.getElementById("restoreGamesBtn").onclick = () => document.getElementById("restoreGamesInput").click();
 document.getElementById("restoreGamesInput").onchange = (e) => {
   const file = e.target.files && e.target.files[0];
@@ -1337,11 +1470,23 @@ document.getElementById("restoreGamesInput").onchange = (e) => {
   }
 };
 document.getElementById("gameSelect").onchange = (e) => {
-  loadLog(e.target.value);
+  currentGameId = e.target.value;
+  syncGameNameInput();
+  loadLog(currentGameId);
 };
-document.getElementById("batterNum").addEventListener("input", saveUiState);
-document.getElementById("batterName").addEventListener("input", saveUiState);
-document.getElementById("batterJersey").addEventListener("input", saveUiState);
+document.getElementById("batterNum").addEventListener("input", () => {
+  saveCurrentBatterProfile();
+  syncBatterFieldsFromProfile();
+  saveUiState();
+});
+document.getElementById("batterName").addEventListener("input", () => {
+  saveCurrentBatterProfile();
+  saveUiState();
+});
+document.getElementById("batterJersey").addEventListener("input", () => {
+  saveCurrentBatterProfile();
+  saveUiState();
+});
 document.getElementById("totalBatters").addEventListener("input", saveUiState);
 
 </script>

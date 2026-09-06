@@ -1,5 +1,6 @@
 create table if not exists public.pitchcaller_games (
   game_id text primary key,
+  game_name text,
   rows jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
