@@ -63,13 +63,57 @@
       line-height: 1.2;
       cursor: pointer;
     }
-    #pitchTypes, #pitchNumbers, #results {
+    #pitchTypes, #results {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
       align-items: flex-start;
     }
-    #pitchTypes button, #pitchNumbers button, #results button,
+    #pitchNumbers {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 110px;
+      padding: 8px;
+    }
+    .pitch-number-display {
+      font-size: clamp(42px, 8vw, 88px);
+      font-weight: 800;
+      line-height: 1;
+      color: #111827;
+      text-align: center;
+      margin-top: 10px;
+    }
+    .pitch-location-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(52px, 1fr));
+      gap: 6px;
+      width: min(100%, 220px);
+      margin-bottom: 6px;
+    }
+    .pitch-location-grid button {
+      min-width: 0;
+      width: 100%;
+      font-size: 14px;
+      min-height: 40px;
+      padding: 6px 4px;
+      border: 2px solid #7c8aa5;
+      background: #eef4ff;
+      color: #1f2937;
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    }
+    .pitch-location-grid button:hover {
+      background: #dfeeff;
+      border-color: #4769a9;
+    }
+    .pitch-location-grid button.active {
+      background: #007bff;
+      border-color: #0056b3;
+      color: #fff;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25);
+      transform: translateY(-1px);
+    }
+    #pitchTypes button, #results button,
     #hitDetails button, #hitLocations button, #hitOutcomes button {
       min-height: 32px;
       padding: 5px 8px;
@@ -253,13 +297,29 @@
       <label>Load Game:
         <select id="gameSelect"></select>
       </label>
-      <div style="margin-top:8px;">
+      <div id="gameNameControls" style="display:none; margin-top:8px;">
         <label for="gameNameInput" style="display:block; margin-bottom:4px;">Game Name:</label>
         <input id="gameNameInput" type="text" maxlength="80" placeholder="My game" style="width:200px;">
       </div>
-      <div>
-        <button id="newGameBtn" style="margin-top:6px; background:#6f42c1; color:white;">
+      <div id="newGameControls" style="display:none; margin-top:8px;">
+        <button id="addNewGameBtn" type="button" style="background:#28a745; color:white; margin-right:6px;">
+          Add New Game
+        </button>
+        <button id="cancelNewGameBtn" type="button" style="background:#6c757d; color:white;">
+          Cancel
+        </button>
+      </div>
+      <div style="margin-top:8px;">
+        <button id="newGameBtn" type="button" style="background:#6f42c1; color:white; margin-right:6px;">
           New Game
+        </button>
+        <button id="renameCurrentGameBtn" type="button" style="background:#17a2b8; color:white;">
+          Rename Current Game
+        </button>
+      </div>
+      <div>
+        <button id="clearBatterProfilesBtn" style="margin-top:6px; background:#fd7e14; color:white;">
+          Clear Batter Profiles
         </button>
       </div>
       <div>
@@ -331,7 +391,7 @@
   </div>
 
   <div class="panel">
-    <h3>Numbers for Selected Pitch</h3>
+    <h3>Selected Number</h3>
     <div id="pitchNumbers"></div>
   </div>
 
@@ -386,7 +446,7 @@
   </div>
 </div>
 <div class="footer">
-  <p>&copy; 2026 PitchCaller v1.0</p>
+  <p>&copy; 2026 PitchCaller v1.1</p>
 </div>
 
 <script>
@@ -410,8 +470,61 @@ function setGameName(gameId, name) {
 
 function syncGameNameInput() {
   const input = document.getElementById("gameNameInput");
+  const controls = document.getElementById("gameNameControls");
   if (!input) return;
-  input.value = getGameName(currentGameId, currentGameId);
+
+  if (controls && controls.style.display !== "none" && input.dataset.mode === "current") {
+    input.value = getGameName(currentGameId, currentGameId);
+  }
+}
+
+function showGameNameInput(mode) {
+  const input = document.getElementById("gameNameInput");
+  const controls = document.getElementById("gameNameControls");
+  const newGameControls = document.getElementById("newGameControls");
+  if (!input || !controls || !newGameControls) return;
+
+  input.dataset.mode = mode;
+  controls.style.display = "block";
+  newGameControls.style.display = mode === "new" ? "block" : "none";
+
+  if (mode === "current") {
+    input.value = getGameName(currentGameId, currentGameId);
+    input.placeholder = "Current game name";
+  } else {
+    input.value = "";
+    input.placeholder = "My new game";
+  }
+
+  input.focus();
+}
+
+function hideGameNameInput() {
+  const input = document.getElementById("gameNameInput");
+  const controls = document.getElementById("gameNameControls");
+  const newGameControls = document.getElementById("newGameControls");
+  if (!input || !controls || !newGameControls) return;
+
+  controls.style.display = "none";
+  newGameControls.style.display = "none";
+  input.value = "";
+  delete input.dataset.mode;
+  input.placeholder = "My game";
+}
+
+function saveCurrentGameNameFromInput() {
+  const input = document.getElementById("gameNameInput");
+  if (!input || input.dataset.mode !== "current") return;
+
+  const name = (input.value || "").trim();
+  if (!name) {
+    input.value = getGameName(currentGameId, currentGameId);
+    return;
+  }
+
+  setGameName(currentGameId, name);
+  populateGameSelect();
+  hideGameNameInput();
 }
 
 // --- CONFIG ---
@@ -526,6 +639,8 @@ const pitchMap = {
   FDI: ["043","121","133","153","213","215","345","422","435"],
   FUI: ["131","225","233","414","545"],
   FUO: ["041","144","451","455","544"],
+  FU:  ["311","414","432","443","554"],
+  FD:  ["124","144","242","441","532"],
   FI:  ["112","152","211","255","313"],
   FO:  ["011","023","055","145","245"],
   F:   ["045","134","222","223","341"],
@@ -533,8 +648,11 @@ const pitchMap = {
   CDI: ["132","151","324","524","534","551"],
   CUO: ["015","224","243","253","323","543"],
   CUI: ["212","244","322","331","445","514"],
+  CU:  ["114","211","314","332","421"],
+  CD:  ["051","121","213","252","445"],
   CI:  ["032","114","123","254","314","334","441","521","555"],
   CO:  ["234","251","312","351","415","512","535","542","553"],
+  C:   ["013","053","113","332","335","355","452","525"],
   D:   ["013","053","113","332","335","355","452","525"],
   DI:  ["142","241","242","352","423","443","453","541"],
   DO:  ["034","035","143","154","232","325","511","513"],
@@ -546,6 +664,28 @@ const pitchMap = {
   RO:  ["044","252","411","454","522"]
 };
 
+const pitchFamilyOptions = {
+  RH: {
+    F: ["FUI", "FU", "FUO", "FI", "F", "FO", "FDI", "FD", "FDO"],
+    C: ["CUI", "CU", "CUO", "CI", "C", "CO", "CDI", "CD", "CDO"],
+    D: ["DI", "D", "DO"],
+    R: ["RI", "R", "RO"]
+  },
+  LH: {
+    F: ["FUO", "FU", "FUI", "FO", "F", "FI", "FDO", "FD", "FDI"],
+    C: ["CUO", "CU", "CUI", "CO", "C", "CI", "CDO", "CD", "CDI"],
+    D: ["DO", "D", "DI"],
+    R: ["RO", "R", "RI"]
+  }
+};
+
+const pitchFamilies = ["F", "C", "D", "R", "CRV", "SCW", "BDC"];
+
+function getPitchLocationOptions(code) {
+  const familyOrder = pitchFamilyOptions[currentHand === "LH" ? "LH" : "RH"] || pitchFamilyOptions.RH;
+  return familyOrder[code] || [code];
+}
+
 const results = [
   "Strike Looking","Strike Swinging","Ball","Foul"
   ,"In Play","HBP"
@@ -556,11 +696,11 @@ const hitDetails = [
 ];
 
 const hitOutcomes = [
-  "Out","Single","Double","Triple","Home Run", "fielders choice"
+  "Out","Single","Double","Triple","Home Run", "Fielders Choice", "Error"
 ];
 
 const hitLocations = [
-  "FB","SS","2nd","3rd","P","C","LF",
+  "1st","SS","2nd","3rd","P","C","LF",
   "RF","CF"
 ];
 
@@ -570,6 +710,7 @@ let currentHand = "RH";
 let balls = 0;
 let strikes = 0;
 let selectedPitchType = null;
+let selectedPitchFamily = null;
 let selectedNumber = null;
 
 const UI_STATE_KEY = "pitchCallerUiState";
@@ -1006,6 +1147,9 @@ function buildHands() {
       currentHand = btn.dataset.hand;
       document.querySelectorAll(".handBtn").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
+      if (selectedPitchFamily) {
+        buildPitchNumbers(selectedPitchFamily);
+      }
       saveCurrentBatterProfile();
       saveUiState();
     };
@@ -1087,27 +1231,34 @@ function autoIncrementBatter() {
   resetCount();
 }
 
+function pickRandomPitchNumber(code) {
+  const options = pitchMap[code] || [];
+  if (!options.length) return null;
+  return options[Math.floor(Math.random() * options.length)];
+}
+
 function buildPitchTypes() {
   const div = document.getElementById("pitchTypes");
-  Object.keys(pitchMap).forEach(code => {
+
+  pitchFamilies.forEach(code => {
     const btn = document.createElement("button");
     btn.textContent = code;
     btn.onclick = () => {
-      selectedPitchType = code;
-      selectedNumber = null;
-      document.querySelectorAll("#pitchTypes button").forEach(b=>b.classList.remove("active"));
+      document.querySelectorAll("#pitchTypes button").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
+      selectedPitchFamily = code;
+      selectedPitchType = code;
       buildPitchNumbers(code);
       saveUiState();
     };
     div.appendChild(btn);
   });
 
-  if (selectedPitchType && pitchMap[selectedPitchType]) {
-    const savedPitchBtn = Array.from(document.querySelectorAll("#pitchTypes button")).find(btn => btn.textContent === selectedPitchType);
+  if (selectedPitchFamily) {
+    const savedPitchBtn = Array.from(document.querySelectorAll("#pitchTypes button")).find(btn => btn.textContent === selectedPitchFamily);
     if (savedPitchBtn) {
       savedPitchBtn.classList.add("active");
-      buildPitchNumbers(selectedPitchType);
+      buildPitchNumbers(selectedPitchFamily);
     }
   }
 }
@@ -1120,21 +1271,71 @@ function resetPitchNumbers() {
 
 function buildPitchNumbers(code) {
   const div = document.getElementById("pitchNumbers");
+  const possiblePitchCodes = getPitchLocationOptions(code);
   div.innerHTML = "";
-  pitchMap[code].forEach(num => {
+
+  if (!possiblePitchCodes.length) {
+    selectedPitchFamily = code;
+    selectedPitchType = code;
+    selectedNumber = null;
+    return;
+  }
+
+  if (possiblePitchCodes.length === 1) {
+    selectedPitchFamily = code;
+    selectedPitchType = possiblePitchCodes[0];
+    selectedNumber = pickRandomPitchNumber(selectedPitchType);
+    const display = document.createElement("div");
+    display.className = "pitch-number-display";
+    display.textContent = selectedNumber;
+    div.appendChild(display);
+    saveUiState();
+    return;
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "pitch-location-grid";
+
+  const activePitch = selectedPitchType && possiblePitchCodes.includes(selectedPitchType) ? selectedPitchType : possiblePitchCodes[0];
+  selectedPitchFamily = code;
+  selectedPitchType = activePitch;
+
+  possiblePitchCodes.forEach(pitchCode => {
     const btn = document.createElement("button");
-    btn.textContent = num;
+    btn.textContent = pitchCode;
     btn.onclick = () => {
-      selectedNumber = num;
-      document.querySelectorAll("#pitchNumbers button").forEach(b=>b.classList.remove("active"));
+      selectedPitchFamily = code;
+      selectedPitchType = pitchCode;
+      selectedNumber = pickRandomPitchNumber(pitchCode);
+      document.querySelectorAll("#pitchNumbers button").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
+      const display = div.querySelector(".pitch-number-display");
+      if (display) {
+        display.textContent = selectedNumber;
+      } else {
+        const newDisplay = document.createElement("div");
+        newDisplay.className = "pitch-number-display";
+        newDisplay.textContent = selectedNumber;
+        div.appendChild(newDisplay);
+      }
       saveUiState();
     };
-    if (selectedNumber === num) {
+
+    if (selectedPitchType === pitchCode) {
       btn.classList.add("active");
     }
-    div.appendChild(btn);
+
+    grid.appendChild(btn);
   });
+
+  div.appendChild(grid);
+
+  selectedNumber = pickRandomPitchNumber(selectedPitchType);
+  const display = document.createElement("div");
+  display.className = "pitch-number-display";
+  display.textContent = selectedNumber;
+  div.appendChild(display);
+  saveUiState();
 }
 
 function buildResults() {
@@ -1222,7 +1423,10 @@ function handleResult(result) {
     else {
       // finalizeLog before moving to next batter
       finalizeLog(null, result);
+      // if foul, stays at 2 strikes and does not move to next batter.
+      if (result !== "Foul") {
       autoIncrementBatter(); // strikeout
+      }
     }
   }
   else if (result === "In Play") {
@@ -1349,26 +1553,72 @@ function exportCSV() {
 
 // --- NEW GAME ---
 
+function clearBatterProfiles() {
+  const confirmed = window.confirm("Clear all saved batter profiles for this app? This will reset batting names, jersey numbers, and hand settings for the current lineup.");
+  if (!confirmed) return;
+
+  localStorage.removeItem(BATTER_PROFILES_KEY);
+
+  const batterInput = document.getElementById("batterNum");
+  const batterNameInput = document.getElementById("batterName");
+  const batterJerseyInput = document.getElementById("batterJersey");
+  if (batterInput) batterInput.value = 1;
+  if (batterNameInput) batterNameInput.value = "";
+  if (batterJerseyInput) batterJerseyInput.value = "";
+
+  currentHand = "RH";
+  document.querySelectorAll(".handBtn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.hand === currentHand);
+  });
+
+  saveUiState();
+}
+
 function newGame() {
   const nameInput = document.getElementById("gameNameInput");
-  const customName = nameInput ? nameInput.value : "";
+  if (!nameInput || nameInput.dataset.mode !== "new") {
+    showGameNameInput("new");
+    return;
+  }
+
+  const customName = (nameInput.value || "").trim();
   let num = parseInt(currentGameId.split("_")[1], 10);
   if (!Number.isFinite(num)) num = 0;
   num++;
+  const previousGameId = currentGameId;
   currentGameId = "game_" + num;
 
   localStorage.setItem("currentGameId", currentGameId);
-  const nextName = (customName || "").trim() || `Game ${num}`;
+  const nextName = customName || `Game ${num}`;
   setGameName(currentGameId, nextName);
-  if (nameInput) nameInput.value = nextName;
+
+  localStorage.removeItem(BATTER_PROFILES_KEY);
 
   document.getElementById("logBody").innerHTML = "";
   resetCount();
   document.getElementById("batterNum").value = 1;
   clearBatterDetails();
 
+  const batterNameInput = document.getElementById("batterName");
+  const batterJerseyInput = document.getElementById("batterJersey");
+  if (batterNameInput) batterNameInput.value = "";
+  if (batterJerseyInput) batterJerseyInput.value = "";
+  currentHand = "RH";
+  document.querySelectorAll(".handBtn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.hand === currentHand);
+  });
+
+  if (nameInput) {
+    nameInput.value = "";
+    hideGameNameInput();
+  }
+
   saveGameRowsToSupabase(currentGameId, []).catch(() => {});
   saveLog();
+
+  if (previousGameId !== currentGameId) {
+    populateGameSelect();
+  }
 }
 
 function deleteGame() {
@@ -1453,12 +1703,16 @@ document.getElementById("newBatterBtn").onclick = newBatter;
 document.getElementById("undoBtn").onclick = undoLastPitch;
 document.getElementById("exportCsvBtn").onclick = exportCSV;
 document.getElementById("saveGamesBtn").onclick = saveGamesToFile;
-document.getElementById("newGameBtn").onclick = newGame;
+document.getElementById("newGameBtn").onclick = () => showGameNameInput("new");
+document.getElementById("addNewGameBtn").onclick = newGame;
+document.getElementById("cancelNewGameBtn").onclick = hideGameNameInput;
+document.getElementById("renameCurrentGameBtn").onclick = () => showGameNameInput("current");
+document.getElementById("clearBatterProfilesBtn").onclick = clearBatterProfiles;
 document.getElementById("deleteGameBtn").onclick = deleteGame;
 document.getElementById("gameNameInput").onchange = (e) => {
-  const name = (e.target.value || "").trim();
-  setGameName(currentGameId, name || getGameName(currentGameId, currentGameId));
-  if (!name) e.target.value = getGameName(currentGameId, currentGameId);
+  if (e.target.dataset.mode === "current") {
+    saveCurrentGameNameFromInput();
+  }
   populateGameSelect();
 };
 document.getElementById("restoreGamesBtn").onclick = () => document.getElementById("restoreGamesInput").click();
