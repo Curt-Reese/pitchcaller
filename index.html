@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Liberty Pitch Calling</title>
+  <title>Pitch Caller</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <style>
@@ -21,8 +21,43 @@
       line-height: 1.2;
     }
     .panel-summary { font-size: 12px; color: #555; margin-left: 6px; }
-    .collapse-toggle { padding: 4px 8px; font-size: 12px; }
     .collapsible-content { margin-top: 6px; }
+
+    .collapse-toggle,
+    #pitchers button,
+    .games-panel button {
+      min-height: 28px;
+      padding: 4px 8px;
+      font-size: 13px;
+      line-height: 1.1;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    #pitchers button,
+    .collapse-toggle {
+      border: 2px solid #666;
+      border-radius: 6px;
+      background: #f5f5f5;
+      color: #1f2937;
+      font-weight: 600;
+    }
+
+    .games-panel button {
+      border: 2px solid #666;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    #addNewGameBtn { background: #28a745; color: #fff; }
+    #cancelNewGameBtn { background: #6c757d; color: #fff; }
+    #newGameBtn { background: #6f42c1; color: #fff; }
+    #renameCurrentGameBtn { background: #17a2b8; color: #fff; }
+    #clearBatterProfilesBtn { background: #fd7e14; color: #fff; }
+    #exportCsvBtn { background: #17a2b8; color: #fff; }
+    #saveGamesBtn { background: #28a745; color: #fff; }
+    #restoreGamesBtn { background: #ffc107; color: #000; }
+    #deleteGameBtn { background: #dc3545; color: #fff; }
 
     label {
       display: inline-block;
@@ -35,12 +70,12 @@
 
     .batter-grid {
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       align-items: center;
       gap: 6px;
       margin-bottom: 0;
       min-height: 0;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .batter-grid label {
@@ -52,16 +87,80 @@
       font-size: 13px;
       line-height: 1.2;
       flex: 0 1 auto;
+      min-width: 0;
     }
 
     .count-stack {
       display: flex;
+      min-height: 0;
+      width: 100%;
+      margin-bottom: 2px;
+    }
+
+    .count-row {
+      display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      min-height: 30px;
       width: 100%;
-      margin-bottom: 4px;
+      flex-wrap: nowrap;
+    }
+
+    .score-inline {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-left: auto;
+      flex-wrap: nowrap;
+    }
+
+    #countDisplay,
+    #scoreDisplay {
+      display: inline-flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    #scoreDisplay {
+      font-weight: 800;
+    }
+
+    #scoreDisplay .score-pill {
+      font-weight: 800;
+    }
+
+    .count-stack .count-stack {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-height: 0;
+      margin-top: 4px;
+      width: auto;
+      flex: 0 0 auto;
+    }
+
+    .override-score-wrap {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 0;
+      width: auto;
+      flex: 0 0 auto;
+    }
+
+    .score-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-top: 0;
+      flex-wrap: nowrap;
     }
 
     button {
@@ -225,16 +324,28 @@
 
     .handBtn,
     #newBatterBtn,
-    #undoBtn {
+    #undoBtn,
+    #endInningSameBatterBtn,
+    #overrideScoreBtn {
       min-height: 28px;
       padding: 4px 8px;
       font-size: 13px;
       line-height: 1.1;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     #countDisplay {
       font-size: 20px;
       font-weight: 700;
+      min-width: 120px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    #scoreDisplay {
+      font-size: 20px;
+      font-weight: 800;
       min-width: 120px;
       line-height: 1.2;
       white-space: nowrap;
@@ -255,6 +366,17 @@
     .count-pill.strikes {
       color: #c62828;
       background: rgba(198, 40, 40, 0.12);
+    }
+
+    .score-pill {
+      display: inline-block;
+      min-width: 54px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid #ced4da;
+      background: #f8f9fa;
+      font-weight: 700;
+      text-align: center;
     }
 
     input:focus, select:focus {
@@ -392,7 +514,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <div class="top-row">
-  <h2>Liberty Pitch Calling</h2>
+  <h2>Pitch Caller</h2>
 
   <div class="panel pitcher-panel">
     <div class="panel-header">
@@ -422,44 +544,44 @@
         <input id="gameNameInput" type="text" maxlength="80" placeholder="My game" style="width:200px;">
       </div>
       <div id="newGameControls" style="display:none; margin-top:8px;">
-        <button id="addNewGameBtn" type="button" style="background:#28a745; color:white; margin-right:6px;">
+        <button id="addNewGameBtn" type="button">
           Add New Game
         </button>
-        <button id="cancelNewGameBtn" type="button" style="background:#6c757d; color:white;">
+        <button id="cancelNewGameBtn" type="button">
           Cancel
         </button>
       </div>
       <div style="margin-top:8px;">
-        <button id="newGameBtn" type="button" style="background:#6f42c1; color:white; margin-right:6px;">
+        <button id="newGameBtn" type="button">
           New Game
         </button>
-        <button id="renameCurrentGameBtn" type="button" style="background:#17a2b8; color:white;">
+        <button id="renameCurrentGameBtn" type="button">
           Rename Current Game
         </button>
       </div>
       <div>
-        <button id="clearBatterProfilesBtn" style="margin-top:6px; background:#fd7e14; color:white;">
+        <button id="clearBatterProfilesBtn" style="margin-top:6px;">
           Clear Batter Profiles
         </button>
       </div>
       <div>
-        <button id="exportCsvBtn" style="margin-top:6px; background:#17a2b8; color:white;">
+        <button id="exportCsvBtn" style="margin-top:6px;">
           Export CSV
         </button>
       </div>
       <div>
-        <button id="saveGamesBtn" style="margin-top:6px; background:#28a745; color:white;">
+        <button id="saveGamesBtn" style="margin-top:6px;">
           Save Games to File
         </button>
       </div>
       <div>
-        <button id="restoreGamesBtn" style="margin-top:6px; background:#ffc107; color:#000;">
+        <button id="restoreGamesBtn" style="margin-top:6px;">
           Restore Games from File
         </button>
         <input id="restoreGamesInput" type="file" accept="application/json,.json" style="display:none;" />
       </div>
       <div>
-        <button id="deleteGameBtn" style="margin-top:6px; background:#dc3545; color:white;">
+        <button id="deleteGameBtn" style="margin-top:6px;">
           Delete Game
         </button>
       </div>
@@ -487,12 +609,25 @@
       <button id="newBatterBtn" style="background:#28a745; color:white;">
         New Batter
       </button>
+      <button id="endInningSameBatterBtn" style="background:#fd7e14; color:white;">
+        3rd Out (Runner)
+      </button>
     </div>
     <div class="count-stack">
-      <div id="countDisplay" aria-live="polite">Balls: <span class="count-pill balls">0/4</span> &nbsp; Strikes: <span class="count-pill strikes">0/3</span></div>
-      <button id="undoBtn" style="background:#dc3545; color:white;">
-        Undo Last Pitch
-      </button>
+      <div class="count-row">
+        <div id="countDisplay" aria-live="polite">Balls: <span class="count-pill balls">0/4</span> &nbsp; Strikes: <span class="count-pill strikes">0/3</span></div>
+        <div class="score-inline">
+          <div id="scoreDisplay" aria-live="polite">Inning: <span class="score-pill inning">Top 1</span> &nbsp; Outs: <span class="score-pill outs">0/3</span></div>
+          <div class="score-actions">
+            <button id="overrideScoreBtn" type="button" style="background:#495057; color:white;" aria-label="Override inning and outs" title="Override inning and outs">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button id="undoBtn" style="background:#dc3545; color:white;">
+              Undo Last Pitch
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -822,6 +957,9 @@ let currentPitcher = pitchers[0];
 let currentHand = "RH";
 let balls = 0;
 let strikes = 0;
+let inning = 1;
+let inningHalf = "Top";
+let outs = 0;
 let selectedPitchType = null;
 let selectedPitchFamily = null;
 let selectedNumber = null;
@@ -912,6 +1050,9 @@ function saveUiState() {
       totalBatters: totalBattersInput ? totalBattersInput.value : "",
       balls,
       strikes,
+      inning,
+      inningHalf,
+      outs,
       selectedPitchType,
       selectedNumber,
       pitcherPanelVisible: document.getElementById("pitcherPanelBody")?.style.display !== "none",
@@ -934,6 +1075,9 @@ function restoreUiState() {
   }
   if (typeof saved.balls === "number") balls = saved.balls;
   if (typeof saved.strikes === "number") strikes = saved.strikes;
+  if (typeof saved.inning === "number") inning = saved.inning;
+  if (saved.inningHalf === "Top" || saved.inningHalf === "Bottom") inningHalf = saved.inningHalf;
+  if (typeof saved.outs === "number") outs = saved.outs;
 
   const batterInput = document.getElementById("batterNum");
   const batterNameInput = document.getElementById("batterName");
@@ -1021,6 +1165,7 @@ function restoreUiState() {
 
   updatePitcherSummary();
   updateCountDisplay();
+  updateScoreDisplay();
 }
 
 function getStoredGameIds() {
@@ -1284,10 +1429,96 @@ function updateCountDisplay() {
   }
 }
 
+function updateScoreDisplay() {
+  const scoreDisplay = document.getElementById("scoreDisplay");
+  if (!scoreDisplay) return;
+
+  const inningEl = scoreDisplay.querySelector('.score-pill.inning');
+  const outsEl = scoreDisplay.querySelector('.score-pill.outs');
+  if (inningEl) inningEl.textContent = `${inning}`;
+  if (outsEl) outsEl.textContent = `${outs}/3`;
+}
+
+function advanceInning() {
+  inning += 1;
+  outs = 0;
+  balls = 0;
+  strikes = 0;
+  inningHalf = "Top";
+  updateCountDisplay();
+  updateScoreDisplay();
+  saveUiState();
+}
+
+function addOut() {
+  if (outs >= 2) {
+    advanceInning();
+    return;
+  }
+
+  outs += 1;
+  updateScoreDisplay();
+  saveUiState();
+}
+
+function endHalfInning() {
+  advanceInning();
+}
+
+function applyScoreFromOutcome(resultText) {
+  const outcome = (resultText || "").toLowerCase();
+  const isOutResult = outcome.includes("out") || outcome.includes("strikeout") || outcome.includes("fielders choice") || outcome.includes("fielder's choice");
+  if (!isOutResult) return;
+
+  if (outs >= 2) {
+    advanceInning();
+    return;
+  }
+
+  outs += 1;
+  balls = 0;
+  strikes = 0;
+  updateCountDisplay();
+  updateScoreDisplay();
+  saveUiState();
+}
+
+function overrideScoreState() {
+  const currentInning = Number.parseInt(window.prompt(`Set inning number (current: ${inning})`, String(inning)), 10);
+  const currentOuts = Number.parseInt(window.prompt(`Set outs (0-3, current: ${outs})`, String(outs)), 10);
+
+  if (!Number.isFinite(currentInning) || currentInning < 1) {
+    window.alert("Inning must be a whole number of 1 or greater.");
+    return;
+  }
+
+  if (!Number.isFinite(currentOuts) || currentOuts < 0 || currentOuts > 3) {
+    window.alert("Outs must be between 0 and 3.");
+    return;
+  }
+
+  inning = currentInning;
+  outs = currentOuts;
+  inningHalf = "Top";
+  balls = 0;
+  strikes = 0;
+  updateCountDisplay();
+  updateScoreDisplay();
+  saveUiState();
+}
+
 function resetCount() {
   balls = 0;
   strikes = 0;
   updateCountDisplay();
+  saveUiState();
+}
+
+function resetScoreState() {
+  inning = 1;
+  inningHalf = "Top";
+  outs = 0;
+  updateScoreDisplay();
   saveUiState();
 }
 
@@ -1326,6 +1557,7 @@ function newBatter() {
   batterInput.value = current + 1;
   syncBatterFieldsFromProfile();
   clearBatterDetails();
+  clearPitchSelection();
   saveUiState();
   resetCount();
 }
@@ -1343,8 +1575,31 @@ function autoIncrementBatter() {
   batterInput.value = current;
   syncBatterFieldsFromProfile();
   clearBatterDetails();
+  clearPitchSelection();
   saveUiState();
   resetCount();
+}
+
+function resetAtBatForSameBatter() {
+  // Use when the inning ends on the 3rd out by another runner.
+  document.getElementById("hitLocationsPanel").style.display = "none";
+  document.getElementById("hitOutcomesPanel").style.display = "none";
+  document.getElementById("hitResultsPanel").style.display = "none";
+
+  document.querySelectorAll("#results button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll("#hitDetails button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll("#hitLocations button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll("#hitOutcomes button").forEach(b => b.classList.remove("active"));
+  clearPitchSelection();
+  window._pendingResult = null;
+  window._pendingHitLocation = null;
+  window._pendingHitDetail = null;
+  resetCount();
+}
+
+function handleEndOfInning() {
+  endHalfInning();
+  resetAtBatForSameBatter();
 }
 
 function pickRandomPitchNumber(code) {
@@ -1382,7 +1637,17 @@ function buildPitchTypes() {
 function resetPitchNumbers() {
   const div = document.getElementById("pitchNumbers");
   div.innerHTML = "";
+  document.querySelectorAll(".pitch-grid-wrap").forEach(node => node.remove());
   selectedNumber = null;
+}
+
+function clearPitchSelection() {
+  document.querySelectorAll("#pitchTypes button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll("#pitchNumbers button").forEach(b => b.classList.remove("active"));
+  selectedPitchFamily = null;
+  selectedPitchType = null;
+  selectedNumber = null;
+  resetPitchNumbers();
 }
 
 function buildPitchNumbers(code) {
@@ -1543,7 +1808,7 @@ function handleResult(result) {
     }
     else {
       // finalizeLog before moving to next batter
-      finalizeLog(null, result);
+      finalizeLog(null, `${result} - Walk`);
       autoIncrementBatter(); // walk
     }
   }
@@ -1555,10 +1820,14 @@ function handleResult(result) {
     }
     else {
       // finalizeLog before moving to next batter
-      finalizeLog(null, result);
       // if foul, stays at 2 strikes and does not move to next batter.
       if (result !== "Foul") {
-      autoIncrementBatter(); // strikeout
+        finalizeLog(null, `${result} - Out`);
+        applyScoreFromOutcome(`${result} - Out`);
+        autoIncrementBatter(); // strikeout
+      }
+      else {
+        finalizeLog(null, result);
       }
     }
   }
@@ -1581,7 +1850,7 @@ function handleResult(result) {
     document.getElementById("hitResultsPanel").style.display = "none";
     document.getElementById("hitOutcomesPanel").style.display = "none";
     document.getElementById("hitLocationsPanel").style.display = "none";
-    //finalizeLog(null, result);
+    clearPitchSelection();
   }
 }
 
@@ -1591,6 +1860,10 @@ function LogInPlayOutcome(outcome) {
   const result = window._pendingResult;
   const overrideResult = result + " - " + hitDetail + "- " + hitLocation + " - " + outcome;
   finalizeLog(null , overrideResult);
+  const normalizedOutcome = (outcome || "").toLowerCase();
+  if (normalizedOutcome.includes("out") || normalizedOutcome.includes("fielders choice") || normalizedOutcome.includes("fielder's choice") || normalizedOutcome.includes("strikeout")) {
+    applyScoreFromOutcome(overrideResult);
+  }
   autoIncrementBatter();
 }
 
@@ -1624,11 +1897,7 @@ function finalizeLog(hitLoc, overrideResult) {
   document.querySelectorAll("#hitLocations button").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll("#hitOutcomes button").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll("#results button").forEach(b=>b.classList.remove("active"));
-  document.querySelectorAll("#pitchTypes button").forEach(b=>b.classList.remove("active"));
-  document.querySelectorAll("#pitchNumbers button").forEach(b=>b.classList.remove("active"));
-  selectedPitchType = null;
-  selectedNumber = null;
-  resetPitchNumbers();
+  clearPitchSelection();
   
   window._pendingResult = null;
   window._pendingHitLocation = null;
@@ -1729,6 +1998,7 @@ function newGame() {
 
   document.getElementById("logBody").innerHTML = "";
   resetCount();
+  resetScoreState();
   document.getElementById("batterNum").value = 1;
   clearBatterDetails();
 
@@ -1820,6 +2090,7 @@ function initLogPanelToggle() {
 buildPitchers();
 buildHands();
 updateCountDisplay();
+updateScoreDisplay();
 buildPitchTypes();
 buildResults();
 buildHitLocations();
@@ -1861,6 +2132,7 @@ document.getElementById("gameSelect").onchange = (e) => {
   syncGameNameInput();
   loadLog(currentGameId);
 };
+document.getElementById("overrideScoreBtn").onclick = overrideScoreState;
 document.getElementById("batterNum").addEventListener("input", () => {
   saveCurrentBatterProfile();
   syncBatterFieldsFromProfile();
@@ -1870,6 +2142,7 @@ document.getElementById("batterName").addEventListener("input", () => {
   saveCurrentBatterProfile();
   saveUiState();
 });
+document.getElementById("endInningSameBatterBtn").onclick = handleEndOfInning;
 document.getElementById("batterJersey").addEventListener("input", () => {
   saveCurrentBatterProfile();
   saveUiState();
