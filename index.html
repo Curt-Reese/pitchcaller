@@ -379,6 +379,12 @@
       font-size: 13px;
       margin: 1px;
     }
+    #pitchers button.active {
+      background: linear-gradient(180deg, #5aa9ff 0%, #0d6efd 100%);
+      border-color: #0a4ec6;
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.24), 0 0 0 2px rgba(13,110,253,0.18);
+    }
     button.active { background:#007bff; color:#fff; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
     th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
@@ -1041,7 +1047,7 @@ const hitOutcomes = [
 ];
 
 const hitLocations = [
-  "1st","SS","2nd","3rd","P","C","LF",
+  "1st","2nd","3rd","SS","P","C","LF",
   "RF","CF"
 ];
 
