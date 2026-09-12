@@ -11,8 +11,71 @@
     .top-row h2 { margin: 0; flex: 1; min-width: 220px; }
     .row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
     .panel { border: 1px solid #ccc; padding: 6px 8px; border-radius: 6px; flex: 1; min-width: 220px; }
-    .games-panel { flex: 0 1 320px; }
+    .games-panel { flex: 0 1 260px; }
     .pitcher-panel { flex: 0 1 280px; }
+    .lineup-panel { flex: 0 1 620px; }
+    .lineup-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 340px;
+      overflow-y: auto;
+      margin-top: 4px;
+    }
+    .lineup-row {
+      display: grid;
+      grid-template-columns: 26px 50px minmax(90px, 1.4fr) 52px 58px 52px auto auto;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .lineup-row:last-child { border-bottom: 0; }
+    .lineup-row.active-lineup-row {
+      background: rgba(0, 123, 255, 0.08);
+      border: 1px solid rgba(0, 123, 255, 0.35);
+      border-radius: 6px;
+      box-shadow: inset 0 0 0 1px rgba(0, 123, 255, 0.12);
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+    .lineup-slot {
+      font-size: 11px;
+      font-weight: 700;
+      color: #374151;
+      text-align: center;
+    }
+    .lineup-input {
+      width: 100%;
+      min-width: 0;
+      padding: 3px 5px;
+      font-size: 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      box-sizing: border-box;
+      min-height: 24px;
+    }
+    .lineup-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .lineup-actions button,
+    .lineup-use-btn,
+    .lineup-delete-btn {
+      min-height: 26px;
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+    .lineup-use-btn,
+    .lineup-delete-btn {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #f8fafc;
+      color: #1f2937;
+      font-weight: 600;
+    }
     .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .panel-header h3 { margin: 0; }
     .panel h3 {
@@ -88,6 +151,17 @@
       line-height: 1.2;
       flex: 0 1 auto;
       min-width: 0;
+    }
+
+    input[type="number"] {
+      box-sizing: border-box;
+      padding-right: 12px;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      opacity: 0.8;
     }
 
     .count-stack {
@@ -323,7 +397,9 @@
     }
 
     .handBtn,
-    #newBatterBtn,
+    #addBatterBtn,
+    .lineup-use-btn,
+    .lineup-delete-btn,
     #undoBtn,
     #endInningSameBatterBtn,
     #overrideScoreBtn {
@@ -496,7 +572,7 @@
         font-size: 22px !important;
       }
 
-      #newBatterBtn,
+      #addBatterBtn,
       #undoBtn {
         margin-top: 4px;
       }
@@ -587,30 +663,47 @@
       </div>
     </div>
   </div>
+
+  <div class="panel lineup-panel">
+    <div class="panel-header">
+      <h3>Batting Lineup</h3>
+      <button id="toggleLineupPanelBtn" class="collapse-toggle" type="button" aria-expanded="false" aria-controls="lineupPanelBody">
+        Show
+      </button>
+    </div>
+    <div id="lineupPanelBody" class="collapsible-content" style="display:none;">
+      <div id="lineupList" class="lineup-list"></div>
+      <div class="lineup-actions">
+        <button id="addBatterBtn" type="button" style="background:#28a745; color:white;">
+          Add Batter
+        </button>
+        <button id="applyLineupBtn" type="button" style="background:#28a745; color:white;">
+          Save Lineup
+        </button>
+        <button id="resetLineupBtn" type="button" style="background:#6c757d; color:white;">
+          Reset Lineup
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="row">
   <div class="panel" style="min-width: 0;">
     <div class="batter-grid">
       <label>Batter #:
-        <input type="number" id="batterNum" min="1" max="20" value="1" style="width:58px;">
+        <input type="number" id="batterNum" min="1" max="20" value="1" style="width:72px; min-width:72px; box-sizing:border-box; padding-right:12px;">
       </label>
       <label>Name:
         <input type="text" id="batterName" placeholder="Optional" style="width:150px;">
       </label>
       <label>#:
-        <input type="number" id="batterJersey" min="0" max="99" placeholder="Optional" style="width:62px;">
-      </label>
-      <label>TB:
-        <input type="number" id="totalBatters" min="1" max="20" value="9" style="width:52px;">
+        <input type="number" id="batterJersey" min="0" max="99" placeholder="Optional" style="width:74px; min-width:74px; box-sizing:border-box; padding-right:12px;">
       </label>
       <button data-hand="RH" class="handBtn active">RH</button>
       <button data-hand="LH" class="handBtn">LH</button>
-      <button id="newBatterBtn" style="background:#28a745; color:white;">
-        New Batter
-      </button>
       <button id="endInningSameBatterBtn" style="background:#fd7e14; color:white;">
-        3rd Out (Runner)
+        3rd Out (reset)
       </button>
     </div>
     <div class="count-stack">
@@ -1040,14 +1133,12 @@ function saveUiState() {
     const batterInput = document.getElementById("batterNum");
     const batterNameInput = document.getElementById("batterName");
     const batterJerseyInput = document.getElementById("batterJersey");
-    const totalBattersInput = document.getElementById("totalBatters");
     const state = {
       currentPitcher,
       currentHand,
       batterNum: batterInput ? batterInput.value : "",
       batterName: batterNameInput ? batterNameInput.value : "",
       batterJersey: batterJerseyInput ? batterJerseyInput.value : "",
-      totalBatters: totalBattersInput ? totalBattersInput.value : "",
       balls,
       strikes,
       inning,
@@ -1082,7 +1173,6 @@ function restoreUiState() {
   const batterInput = document.getElementById("batterNum");
   const batterNameInput = document.getElementById("batterName");
   const batterJerseyInput = document.getElementById("batterJersey");
-  const totalBattersInput = document.getElementById("totalBatters");
   if (batterInput && saved.batterNum !== undefined) {
     batterInput.value = saved.batterNum;
   }
@@ -1091,9 +1181,6 @@ function restoreUiState() {
   }
   if (batterJerseyInput && saved.batterJersey !== undefined) {
     batterJerseyInput.value = saved.batterJersey;
-  }
-  if (totalBattersInput && saved.totalBatters !== undefined) {
-    totalBattersInput.value = saved.totalBatters;
   }
   syncBatterFieldsFromProfile();
 
@@ -1208,9 +1295,315 @@ function populateGameSelect() {
   });
 }
 
+const LINEUP_KEY_PREFIX = "pitchCallerLineup_";
+
+function getLineupKey(gameId = currentGameId) {
+  return LINEUP_KEY_PREFIX + gameId;
+}
+
+function buildDefaultLineup(totalBatters = 9) {
+  const lineup = [];
+  const safeTotal = Number.isFinite(totalBatters) && totalBatters > 0 ? totalBatters : 9;
+  for (let i = 1; i <= safeTotal; i++) {
+    const profile = getBatterProfiles()[String(i)] || {};
+    lineup.push({
+      slot: i,
+      number: i,
+      name: profile.name || "",
+      jersey: profile.jersey || "",
+      hand: profile.hand || "RH",
+      position: ""
+    });
+  }
+  return lineup;
+}
+
+function normalizeLineup(lineup) {
+  const safeLineup = Array.isArray(lineup) ? lineup : [];
+  const normalized = [];
+
+  safeLineup.forEach((source, index) => {
+    const slot = index + 1;
+    const defaultProfile = getBatterProfiles()[String(source.number || slot)] || {};
+    const batterNumber = Number(source.number) || slot;
+
+    normalized.push({
+      slot,
+      number: batterNumber,
+      name: source.name || defaultProfile.name || "",
+      jersey: source.jersey || defaultProfile.jersey || "",
+      hand: source.hand || defaultProfile.hand || "RH",
+      position: source.position || ""
+    });
+  });
+
+  return normalized.length ? normalized : buildDefaultLineup(9);
+}
+
+function getLineupForGame(gameId = currentGameId) {
+  const key = getLineupKey(gameId);
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) {
+        return normalizeLineup(parsed);
+      }
+    }
+  } catch (error) {
+    // Ignore corrupted saved lineup and rebuild from batter profiles.
+  }
+
+  return buildDefaultLineup(9);
+}
+
+function saveLineupForGame(gameId = currentGameId, lineup) {
+  const trimmed = normalizeLineup(lineup);
+  localStorage.setItem(getLineupKey(gameId), JSON.stringify(trimmed));
+  return trimmed;
+}
+
+function ensureCurrentGameLineup(gameId = currentGameId) {
+  const lineup = getLineupForGame(gameId);
+  const key = getLineupKey(gameId);
+  if (!localStorage.getItem(key)) {
+    saveLineupForGame(gameId, lineup);
+  }
+  return lineup;
+}
+
+function updateBatterProfileFromLineupEntry(entry) {
+  const safeNumber = Number(entry.number) || Number(entry.slot) || 1;
+  const profiles = getBatterProfiles();
+  profiles[String(safeNumber)] = {
+    name: (entry.name || "").trim(),
+    jersey: (entry.jersey || "").trim(),
+    hand: entry.hand || "RH"
+  };
+  saveBatterProfiles(profiles);
+}
+
+function reorderLineupEntries(lineupData) {
+  return [...lineupData]
+    .map((entry, index) => ({
+      ...entry,
+      slot: index + 1,
+      number: Number(entry.number) || index + 1
+    }))
+    .sort((a, b) => {
+      const aNumber = Number(a.number) || Number(a.slot) || Number.MAX_SAFE_INTEGER;
+      const bNumber = Number(b.number) || Number(b.slot) || Number.MAX_SAFE_INTEGER;
+      return aNumber - bNumber || Number(a.slot) - Number(b.slot);
+    })
+    .map((entry, index) => ({
+      ...entry,
+      slot: index + 1,
+      number: Number(entry.number) || index + 1
+    }));
+}
+
+function addBatterToLineup() {
+  const lineup = getLineupForGame(currentGameId);
+  const nextNumber = Math.max(...lineup.map(entry => Number(entry.number) || 0), 0) + 1;
+  const nextEntry = {
+    slot: lineup.length + 1,
+    number: nextNumber,
+    name: "",
+    jersey: "",
+    hand: "RH",
+    position: ""
+  };
+
+  const updatedLineup = [...lineup, nextEntry];
+  saveLineupForGame(currentGameId, updatedLineup);
+  renderLineupEditor();
+}
+
+function deleteLineupEntry(index) {
+  const lineup = getLineupForGame(currentGameId);
+  if (lineup.length <= 1) return;
+
+  lineup.splice(index, 1);
+  const reordered = reorderLineupEntries(lineup);
+  saveLineupForGame(currentGameId, reordered);
+  renderLineupEditor();
+}
+
+function renderLineupEditor() {
+  const container = document.getElementById("lineupList");
+  if (!container) return;
+
+  const lineup = getLineupForGame(currentGameId);
+  container.innerHTML = "";
+
+  lineup.forEach((entry, index) => {
+    const row = document.createElement("div");
+    row.className = "lineup-row";
+    row.dataset.index = String(index);
+    row.dataset.slot = String(entry.slot || index + 1);
+    if (Number(entry.number) === Number(document.getElementById("batterNum")?.value || "0")) {
+      row.classList.add("active-lineup-row");
+    }
+
+    const slotLabel = document.createElement("span");
+    slotLabel.className = "lineup-slot";
+    slotLabel.textContent = `#${entry.slot || index + 1}`;
+
+    const numberInput = document.createElement("input");
+    numberInput.type = "number";
+    numberInput.min = "1";
+    numberInput.max = "20";
+    numberInput.value = String(entry.number || entry.slot || index + 1);
+    numberInput.className = "lineup-input lineup-batter-num";
+    numberInput.setAttribute("aria-label", `Batter number ${entry.slot || index + 1}`);
+
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = entry.name || "";
+    nameInput.placeholder = "Name";
+    nameInput.className = "lineup-input lineup-name";
+    nameInput.setAttribute("aria-label", `Batter name ${entry.slot || index + 1}`);
+
+    const jerseyInput = document.createElement("input");
+    jerseyInput.type = "number";
+    jerseyInput.min = "0";
+    jerseyInput.max = "99";
+    jerseyInput.value = entry.jersey || "";
+    jerseyInput.placeholder = "#";
+    jerseyInput.className = "lineup-input lineup-jersey";
+    jerseyInput.setAttribute("aria-label", `Batter jersey ${entry.slot || index + 1}`);
+
+    const handSelect = document.createElement("select");
+    handSelect.className = "lineup-input lineup-hand";
+    handSelect.setAttribute("aria-label", `Batter hand ${entry.slot || index + 1}`);
+    ["RH", "LH"].forEach(hand => {
+      const option = document.createElement("option");
+      option.value = hand;
+      option.textContent = hand;
+      option.selected = (entry.hand || "RH") === hand;
+      handSelect.appendChild(option);
+    });
+
+    const positionInput = document.createElement("input");
+    positionInput.type = "text";
+    positionInput.value = entry.position || "";
+    positionInput.placeholder = "Pos";
+    positionInput.className = "lineup-input lineup-position";
+    positionInput.setAttribute("aria-label", `Batter position ${entry.slot || index + 1}`);
+
+    const useBtn = document.createElement("button");
+    useBtn.type = "button";
+    useBtn.textContent = "Use";
+    useBtn.className = "lineup-use-btn";
+    useBtn.onclick = () => {
+      const batterInput = document.getElementById("batterNum");
+      const batterNameInput = document.getElementById("batterName");
+      const batterJerseyInput = document.getElementById("batterJersey");
+      const selectedNumber = Number(numberInput.value) || Number(entry.slot || index + 1);
+      const nextHand = handSelect.value || "RH";
+
+      if (batterInput) batterInput.value = selectedNumber;
+      if (batterNameInput) batterNameInput.value = nameInput.value || "";
+      if (batterJerseyInput) batterJerseyInput.value = jerseyInput.value || "";
+
+      currentHand = nextHand;
+      document.querySelectorAll(".handBtn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.hand === currentHand);
+      });
+
+      syncCurrentLineupSelection();
+      saveCurrentBatterProfile();
+      saveUiState();
+    };
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.className = "lineup-delete-btn";
+    deleteBtn.onclick = () => deleteLineupEntry(index);
+
+    const refreshLineup = (reorder = false) => {
+      const nextEntry = {
+        slot: Number(row.dataset.slot || index + 1),
+        number: Number(numberInput.value) || Number(row.dataset.slot || index + 1),
+        name: nameInput.value.trim(),
+        jersey: jerseyInput.value.trim(),
+        hand: handSelect.value || "RH",
+        position: positionInput.value.trim()
+      };
+
+      const lineupData = getLineupForGame(currentGameId);
+      lineupData[index] = nextEntry;
+
+      const finalLineup = reorder ? reorderLineupEntries(lineupData) : lineupData;
+      saveLineupForGame(currentGameId, finalLineup);
+      updateBatterProfileFromLineupEntry(nextEntry);
+
+      if (String(document.getElementById("batterNum")?.value || "") === String(nextEntry.number)) {
+        syncBatterFieldsFromProfile();
+      }
+
+      if (reorder) {
+        renderLineupEditor();
+      }
+      saveUiState();
+    };
+
+    numberInput.addEventListener("change", () => refreshLineup(true));
+    nameInput.addEventListener("input", () => refreshLineup());
+    jerseyInput.addEventListener("input", () => refreshLineup());
+    handSelect.addEventListener("change", () => refreshLineup());
+    positionInput.addEventListener("input", () => refreshLineup());
+
+    row.append(slotLabel, numberInput, nameInput, jerseyInput, handSelect, positionInput, useBtn, deleteBtn);
+    container.appendChild(row);
+  });
+}
+
+function applyCurrentLineup() {
+  const rows = Array.from(document.querySelectorAll("#lineupList .lineup-row"));
+  const lineup = rows.map((row, index) => {
+    const slot = Number(row.dataset.slot || index + 1);
+    const numberInput = row.querySelector(".lineup-batter-num");
+    const nameInput = row.querySelector(".lineup-name");
+    const jerseyInput = row.querySelector(".lineup-jersey");
+    const handSelect = row.querySelector(".lineup-hand");
+    const positionInput = row.querySelector(".lineup-position");
+
+    const entry = {
+      slot,
+      number: Number(numberInput?.value) || slot,
+      name: nameInput?.value || "",
+      jersey: jerseyInput?.value || "",
+      hand: handSelect?.value || "RH",
+      position: positionInput?.value || ""
+    };
+
+    updateBatterProfileFromLineupEntry(entry);
+    return entry;
+  });
+
+  const finalLineup = reorderLineupEntries(lineup);
+  saveLineupForGame(currentGameId, finalLineup);
+  const firstBatter = finalLineup[0] && finalLineup[0].number ? String(finalLineup[0].number) : "1";
+  const batterInput = document.getElementById("batterNum");
+  if (batterInput) batterInput.value = firstBatter;
+  syncBatterFieldsFromProfile();
+  saveUiState();
+  renderLineupEditor();
+}
+
+function resetLineup() {
+  const lineup = buildDefaultLineup(9);
+  saveLineupForGame(currentGameId, lineup);
+  renderLineupEditor();
+  lineup.forEach(entry => updateBatterProfileFromLineupEntry(entry));
+}
+
 function getBackupPayload() {
   const games = {};
   const gameNames = {};
+  const lineups = {};
   getStoredGameIds().forEach(id => {
     const raw = localStorage.getItem("pitchLog_" + id);
     if (raw) {
@@ -1225,14 +1618,24 @@ function getBackupPayload() {
     if (name) {
       gameNames[id] = name;
     }
+
+    const lineupRaw = localStorage.getItem(getLineupKey(id));
+    if (lineupRaw) {
+      try {
+        lineups[id] = JSON.parse(lineupRaw);
+      } catch (error) {
+        lineups[id] = [];
+      }
+    }
   });
 
   return {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     currentGameId,
     games,
-    gameNames
+    gameNames,
+    lineups
   };
 }
 
@@ -1273,6 +1676,12 @@ function restoreGamesFromFile(file) {
           localStorage.setItem("gameName_" + gameId, restoredName);
         } else {
           localStorage.removeItem("gameName_" + gameId);
+        }
+
+        if (payload.lineups && Array.isArray(payload.lineups[gameId])) {
+          localStorage.setItem(getLineupKey(gameId), JSON.stringify(payload.lineups[gameId]));
+        } else {
+          localStorage.removeItem(getLineupKey(gameId));
         }
       });
 
@@ -1399,12 +1808,40 @@ function initPitcherPanelToggle() {
   updatePitcherSummary();
 }
 
+function syncCurrentLineupSelection() {
+  const currentBatterNumber = Number(document.getElementById("batterNum")?.value || "0");
+  document.querySelectorAll("#lineupList .lineup-row").forEach(row => {
+    const rowNumberInput = row.querySelector(".lineup-batter-num");
+    const rowNumber = Number(rowNumberInput?.value || "0");
+    const isActive = rowNumber === currentBatterNumber;
+    row.classList.toggle("active-lineup-row", isActive);
+
+    if (rowNumber === currentBatterNumber) {
+      const handSelect = row.querySelector(".lineup-hand");
+      if (handSelect) {
+        handSelect.value = currentHand;
+      }
+      const lineupEntry = getLineupForGame(currentGameId);
+      const index = Number(row.dataset.index || 0);
+      if (lineupEntry[index]) {
+        lineupEntry[index].hand = currentHand;
+        saveLineupForGame(currentGameId, lineupEntry);
+      }
+    }
+  });
+}
+
+function syncCurrentLineupHand() {
+  syncCurrentLineupSelection();
+}
+
 function buildHands() {
   document.querySelectorAll(".handBtn").forEach(btn => {
     btn.onclick = () => {
       currentHand = btn.dataset.hand;
       document.querySelectorAll(".handBtn").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
+      syncCurrentLineupHand();
       if (selectedPitchFamily) {
         buildPitchNumbers(selectedPitchFamily);
       }
@@ -1550,30 +1987,25 @@ function getBatterDisplayName() {
   return parts.join(" - ");
 }
 
-function newBatter() {
-  let batterInput = document.getElementById("batterNum");
-  let current = parseInt(batterInput.value || "1");
-  saveCurrentBatterProfile();
-  batterInput.value = current + 1;
-  syncBatterFieldsFromProfile();
-  clearBatterDetails();
-  clearPitchSelection();
-  saveUiState();
-  resetCount();
-}
-
 function autoIncrementBatter() {
   const batterInput = document.getElementById("batterNum");
-  const total = parseInt(document.getElementById("totalBatters").value || "9");
+  if (!batterInput) return;
 
-  let current = parseInt(batterInput.value || "1");
+  const lineup = reorderLineupEntries(getLineupForGame(currentGameId));
+  const currentNumber = Number(batterInput.value) || 1;
+  let currentIndex = lineup.findIndex(entry => Number(entry.number) === currentNumber);
+
+  if (currentIndex === -1) {
+    currentIndex = 0;
+  }
+
+  const nextIndex = currentIndex + 1 >= lineup.length ? 0 : currentIndex + 1;
+  const nextBatter = Number(lineup[nextIndex].number) || 1;
+
   saveCurrentBatterProfile();
-  current++;
-
-  if (current > total) current = 1;
-
-  batterInput.value = current;
+  batterInput.value = nextBatter;
   syncBatterFieldsFromProfile();
+  syncCurrentLineupSelection();
   clearBatterDetails();
   clearPitchSelection();
   saveUiState();
@@ -1960,6 +2392,9 @@ function clearBatterProfiles() {
   if (!confirmed) return;
 
   localStorage.removeItem(BATTER_PROFILES_KEY);
+  getStoredGameIds().forEach(gameId => {
+    localStorage.removeItem(getLineupKey(gameId));
+  });
 
   const batterInput = document.getElementById("batterNum");
   const batterNameInput = document.getElementById("batterName");
@@ -1973,6 +2408,8 @@ function clearBatterProfiles() {
     btn.classList.toggle("active", btn.dataset.hand === currentHand);
   });
 
+  ensureCurrentGameLineup(currentGameId);
+  renderLineupEditor();
   saveUiState();
 }
 
@@ -1995,12 +2432,15 @@ function newGame() {
   setGameName(currentGameId, nextName);
 
   localStorage.removeItem(BATTER_PROFILES_KEY);
+  localStorage.removeItem(getLineupKey(currentGameId));
 
   document.getElementById("logBody").innerHTML = "";
   resetCount();
   resetScoreState();
   document.getElementById("batterNum").value = 1;
   clearBatterDetails();
+  ensureCurrentGameLineup(currentGameId);
+  renderLineupEditor();
 
   const batterNameInput = document.getElementById("batterName");
   const batterJerseyInput = document.getElementById("batterJersey");
@@ -2057,6 +2497,7 @@ function deleteGame() {
     currentGameId = remainingIds[0];
   }
 
+  localStorage.removeItem(getLineupKey(selectedGameId));
   loadLog(currentGameId);
 }
 
@@ -2086,6 +2527,19 @@ function initLogPanelToggle() {
   };
 }
 
+function initLineupPanelToggle() {
+  const toggleBtn = document.getElementById("toggleLineupPanelBtn");
+  const panelBody = document.getElementById("lineupPanelBody");
+
+  toggleBtn.onclick = () => {
+    const isHidden = panelBody.style.display === "none";
+    panelBody.style.display = isHidden ? "block" : "none";
+    toggleBtn.textContent = isHidden ? "Hide" : "Show";
+    toggleBtn.setAttribute("aria-expanded", String(isHidden));
+    saveUiState();
+  };
+}
+
 // --- INIT ---
 buildPitchers();
 buildHands();
@@ -2099,11 +2553,16 @@ buildHitOutcomes();
 initPitcherPanelToggle();
 initGamesPanelToggle();
 initLogPanelToggle();
+initLineupPanelToggle();
 restoreUiState();
+ensureCurrentGameLineup(currentGameId);
+renderLineupEditor();
 
 loadLog(currentGameId);
 
-document.getElementById("newBatterBtn").onclick = newBatter;
+document.getElementById("addBatterBtn").onclick = addBatterToLineup;
+document.getElementById("applyLineupBtn").onclick = applyCurrentLineup;
+document.getElementById("resetLineupBtn").onclick = resetLineup;
 document.getElementById("undoBtn").onclick = undoLastPitch;
 document.getElementById("exportCsvBtn").onclick = exportCSV;
 document.getElementById("saveGamesBtn").onclick = saveGamesToFile;
@@ -2130,12 +2589,15 @@ document.getElementById("restoreGamesInput").onchange = (e) => {
 document.getElementById("gameSelect").onchange = (e) => {
   currentGameId = e.target.value;
   syncGameNameInput();
+  ensureCurrentGameLineup(currentGameId);
+  renderLineupEditor();
   loadLog(currentGameId);
 };
 document.getElementById("overrideScoreBtn").onclick = overrideScoreState;
 document.getElementById("batterNum").addEventListener("input", () => {
   saveCurrentBatterProfile();
   syncBatterFieldsFromProfile();
+  syncCurrentLineupSelection();
   saveUiState();
 });
 document.getElementById("batterName").addEventListener("input", () => {
@@ -2147,7 +2609,6 @@ document.getElementById("batterJersey").addEventListener("input", () => {
   saveCurrentBatterProfile();
   saveUiState();
 });
-document.getElementById("totalBatters").addEventListener("input", saveUiState);
 
 </script>
 
